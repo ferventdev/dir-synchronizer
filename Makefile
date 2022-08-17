@@ -19,7 +19,7 @@ run: build
 	@${MAIN_DIR}/${BINARY_NAME} ${srcdir} ${copydir} &
 
 debug:
-	@cd ${MAIN_DIR} && go run -race main.go -log2std ${srcdir} ${copydir}
+	@go run -race ${MAIN_DIR}/main.go -log2std ${srcdir} ${copydir}
 
 clean:
 	@cd ${MAIN_DIR} && go clean

@@ -1,39 +1,61 @@
 package main
 
 import (
+	"dsync/internal/log"
 	"errors"
 	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
 type Settings struct {
 	srcDir   string
 	copyDir  string
+	logLevel log.Level
 	logToStd bool
 	once     bool
 }
 
 func main() {
 	fmt.Println("start")
-	settings, err := parseCommandArgs()
+	settings, err := parseCommandArgs(os.Args[1:])
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(2)
 	}
 	if err := validateSettings(settings); err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		exit(err)
 	}
-	fmt.Println("settings:", settings)
-
-	time.Sleep(1 * time.Second)
-	fmt.Println("finish")
+	if err := run(settings); err != nil {
+		exit(err)
+	}
 }
 
-func parseCommandArgs() (*Settings, error) {
+func exit(err error) {
+	fmt.Println(err)
+	os.Exit(1)
+}
+
+func run(stg *Settings) error {
+	fmt.Println("settings:", stg)
+	logger, err := log.New(stg.logLevel, stg.logToStd)
+	if err != nil {
+		return fmt.Errorf("can't initialize the logger: %v", err)
+	}
+	defer logger.Sync()
+	logger.Info("logger initialized")
+
+	// todo
+	time.Sleep(1 * time.Second)
+
+	logger.Info("finish")
+	return nil
+}
+
+func parseCommandArgs(args []string) (*Settings, error) {
 	stg := new(Settings)
 
 	flagSet := flag.NewFlagSet("Directories Synchronizer CLI", flag.ExitOnError)
@@ -42,7 +64,13 @@ func parseCommandArgs() (*Settings, error) {
 	flagSet.BoolVar(&stg.once, "once", false,
 		"if true, then directories are synchronized only once (i.e. the program has finite execution), "+
 			"otherwise - the process is started and lasts indefinitely (until interruption)")
-	flagSet.Parse(os.Args[1:])
+	var level string
+	flagSet.StringVar(&level, "loglvl", log.InfoLevel,
+		fmt.Sprintf("level of logging, permitted values are: %v, %v, %v, %v",
+			log.DebugLevel, log.InfoLevel, log.WarnLevel, log.ErrorLevel),
+	)
+
+	flagSet.Parse(args)
 
 	if flagSet.NArg() < 2 {
 		return nil, errors.New("at least two arguments (for the directories for synchronization) must present")
@@ -58,6 +86,10 @@ func parseCommandArgs() (*Settings, error) {
 	if stg.srcDir == stg.copyDir {
 		return nil, errors.New("the directories for synchronization cannot be the same")
 	}
+	if !log.Level(level).IsValid() {
+		return nil, fmt.Errorf("logging level %q does not exist", level)
+	}
+	stg.logLevel = log.Level(strings.ToLower(level))
 
 	return stg, nil
 }

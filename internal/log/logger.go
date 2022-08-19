@@ -5,6 +5,12 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
+const (
+	stdoutPath  = "stdout"
+	stderrPath  = "stderr"
+	logfilePath = "tmp/log.txt"
+)
+
 type Field = zap.Field
 
 type Logger interface {
@@ -16,7 +22,12 @@ type Logger interface {
 }
 
 func New(lvl Level, logToStd bool) (Logger, error) {
-	// todo: consider logToStd
+	outPaths := []string{logfilePath}
+	errOutPaths := []string{stderrPath, logfilePath}
+	if logToStd {
+		outPaths = []string{stdoutPath}
+		errOutPaths = []string{stderrPath}
+	}
 	return zap.Config{
 		Level:    zap.NewAtomicLevelAt(levelsMapping[lvl]),
 		Encoding: "json",
@@ -34,7 +45,7 @@ func New(lvl Level, logToStd bool) (Logger, error) {
 			EncodeDuration: zapcore.StringDurationEncoder,
 			EncodeCaller:   zapcore.ShortCallerEncoder,
 		},
-		OutputPaths:      []string{"stderr"},
-		ErrorOutputPaths: []string{"stderr"},
+		OutputPaths:      outPaths,
+		ErrorOutputPaths: errOutPaths,
 	}.Build()
 }

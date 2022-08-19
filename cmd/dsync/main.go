@@ -29,7 +29,7 @@ func exit(err error, returnCode int) {
 }
 
 func run(stg *settings.Settings) error {
-	fmt.Println("settings:", stg)
+	fmt.Printf("settings: %+v\n", stg)
 	logger, err := log.New(stg.LogLevel, stg.LogToStd)
 	if err != nil {
 		return fmt.Errorf("can't initialize the logger: %v", err)

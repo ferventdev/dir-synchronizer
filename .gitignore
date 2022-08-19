@@ -1,6 +1,9 @@
 # Binaries for programs and plugins
 cmd/dsync/dirsynchronizer
 
+# Various temp files
+tmp/log.txt
+
 # Output of the go coverage tool
 *.out
 

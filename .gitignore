@@ -1,0 +1,8 @@
+# Binaries for programs and plugins
+cmd/dsync/dirsynchronizer
+
+# Output of the go coverage tool
+*.out
+
+# IDE files
+.idea

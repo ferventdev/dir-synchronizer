@@ -16,6 +16,7 @@ type Settings struct {
 	LogLevel log.Level
 	LogToStd bool
 	Once     bool
+	PrintPID bool
 }
 
 func New(commandArgs []string) (*Settings, error) {
@@ -27,6 +28,8 @@ func New(commandArgs []string) (*Settings, error) {
 	flagSet.BoolVar(&stg.Once, "once", false,
 		"if true, then directories are synchronized only once (i.e. the program has finite execution), "+
 			"otherwise - the process is started and lasts indefinitely (until interruption)")
+	flagSet.BoolVar(&stg.PrintPID, "pid", false,
+		"if true, then the PID is printed at the startup (may be useful in case of background running)")
 	var level string
 	flagSet.StringVar(&level, "loglvl", log.InfoLevel,
 		fmt.Sprintf("level of logging, permitted values are: %v, %v, %v, %v",

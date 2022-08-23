@@ -1,15 +1,17 @@
 package main
 
 import (
+	"context"
 	"dsync/internal/log"
 	"dsync/internal/settings"
 	"fmt"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 )
 
 func main() {
-	fmt.Println("start")
 	stg, err := settings.New(os.Args[1:])
 	if err != nil {
 		exit(err, 2)
@@ -18,9 +20,13 @@ func main() {
 		exit(err, 1)
 	}
 
-	if err := run(stg); err != nil {
+	pid := os.Getpid()
+	if err := run(stg, pid); err != nil {
 		exit(err, 1)
 	}
+
+	time.Sleep(100 * time.Millisecond)
+	fmt.Printf("Directories Synchronizer process (PID = %d) has been stopped\n", pid)
 }
 
 func exit(err error, returnCode int) {
@@ -28,8 +34,8 @@ func exit(err error, returnCode int) {
 	os.Exit(returnCode)
 }
 
-func run(stg *settings.Settings) error {
-	fmt.Printf("settings: %+v\n", stg)
+func run(stg *settings.Settings, pid int) error {
+	fmt.Printf("settings: %+v\n", stg) // todo: comment this print later
 	logger, err := log.New(stg.LogLevel, stg.LogToStd)
 	if err != nil {
 		return fmt.Errorf("can't initialize the logger: %v", err)
@@ -37,9 +43,22 @@ func run(stg *settings.Settings) error {
 	defer logger.Sync()
 	logger.Info("logger initialized")
 
-	// todo
-	time.Sleep(1 * time.Second)
+	if stg.PrintPID {
+		// this doesn't go to the log intentionally, only to the console, may be useful in case of background running
+		fmt.Println("Directories Synchronizer process started, its PID:", pid)
+	}
 
-	logger.Info("finish")
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
+	defer stop()
+
+	select {
+	case <-ctx.Done():
+		stop() // stop receiving signal notifications as soon as possible
+		return nil
+	case <-time.After(5 * time.Second):
+		fmt.Println("Timeout expired")
+	}
+
+	// todo
 	return nil
 }

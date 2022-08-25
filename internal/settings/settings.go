@@ -17,19 +17,22 @@ const (
 )
 
 type Settings struct {
-	SrcDir     string
-	CopyDir    string
-	ScanPeriod time.Duration
-	LogLevel   log.Level
-	LogToStd   bool
-	Once       bool
-	PrintPID   bool
+	SrcDir        string
+	CopyDir       string
+	ScanPeriod    time.Duration
+	IncludeHidden bool
+	LogLevel      log.Level
+	LogToStd      bool
+	Once          bool
+	PrintPID      bool
 }
 
 func New(commandArgs []string) (*Settings, error) {
 	stg := new(Settings)
 	flagSet := flag.NewFlagSet("Directories Synchronizer CLI", flag.ExitOnError)
 
+	flagSet.BoolVar(&stg.IncludeHidden, "hidden", false,
+		"if true, then hidden files (that start with dot) are included in synchronization")
 	flagSet.BoolVar(&stg.LogToStd, "log2std", false,
 		"if true, then logs are written to the console, otherwise - to the text file")
 	flagSet.BoolVar(&stg.Once, "once", false,

@@ -22,7 +22,7 @@ run: build
 	@${MAIN_DIR}/${BINARY_NAME} -pid ${srcdir} ${copydir} &
 
 debug:
-	@go run -race ${MAIN_DIR}/main.go -pid -log2std -loglvl=DEBUG ${srcdir} ${copydir}
+	@go run -race ${MAIN_DIR}/main.go -scanperiod=1s -pid -log2std -loglvl=DEBUG ${srcdir} ${copydir}
 
 clean:
 	@cd ${MAIN_DIR} && go clean

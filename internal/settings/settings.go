@@ -8,15 +8,22 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
+)
+
+const (
+	minScanPeriod = time.Second
+	maxScanPeriod = 10 * time.Second
 )
 
 type Settings struct {
-	SrcDir   string
-	CopyDir  string
-	LogLevel log.Level
-	LogToStd bool
-	Once     bool
-	PrintPID bool
+	SrcDir     string
+	CopyDir    string
+	ScanPeriod time.Duration
+	LogLevel   log.Level
+	LogToStd   bool
+	Once       bool
+	PrintPID   bool
 }
 
 func New(commandArgs []string) (*Settings, error) {
@@ -35,6 +42,8 @@ func New(commandArgs []string) (*Settings, error) {
 		fmt.Sprintf("level of logging, permitted values are: %v, %v, %v, %v",
 			log.DebugLevel, log.InfoLevel, log.WarnLevel, log.ErrorLevel),
 	)
+	flagSet.DurationVar(&stg.ScanPeriod, "scanperiod", time.Second,
+		fmt.Sprintf("period of directories scanning, must be a value between %v and %v", minScanPeriod, maxScanPeriod))
 
 	flagSet.Parse(commandArgs)
 
@@ -66,6 +75,10 @@ func (stg *Settings) Validate() error {
 	}
 	if err := validateDirectoryPath(stg.CopyDir); err != nil {
 		return fmt.Errorf("the second (copy) directory is invalid: %v", err)
+	}
+	if stg.ScanPeriod < minScanPeriod || stg.ScanPeriod > maxScanPeriod {
+		return fmt.Errorf("period of directories scanning must be a value between %v and %v, while it is %v",
+			minScanPeriod, maxScanPeriod, stg.ScanPeriod)
 	}
 	return nil
 }

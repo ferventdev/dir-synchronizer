@@ -30,7 +30,8 @@ func (d *DirSyncer) Start(ctx context.Context, stop context.CancelFunc) (err err
 		}
 	}()
 
-	dirScanner := newDirScanner(d.log, d.settings)
+	eMap := newDirEntriesMap()
+	dirScanner := newDirScanner(d.log, d.settings, eMap)
 
 	if d.settings.Once {
 		dirScanner.scanOnce(ctx)

@@ -11,6 +11,12 @@ const (
 	logfilePath = "tmp/log.txt"
 )
 
+var (
+	Any      = zap.Any
+	Duration = zap.Duration
+	String   = zap.String
+)
+
 type Field = zap.Field
 
 type Logger interface {

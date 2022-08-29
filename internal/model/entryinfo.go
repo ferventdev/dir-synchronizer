@@ -13,7 +13,6 @@ type PathInfo struct {
 
 //EntryInfo holds info about same dir entry in BOTH files trees (source and copy) and the sync operation between them.
 type EntryInfo struct {
-	Active       bool
 	SrcPathInfo  PathInfo
 	CopyPathInfo PathInfo
 	Operation    *Operation

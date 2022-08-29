@@ -20,7 +20,10 @@ func (m *DirEntriesMap) PrepareForScan() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	for _, entry := range m.eMap {
-		entry.Active = false // we reset the Active flag at the beginning of each file tree scan
+		// we reset the existence flags at the beginning of each file trees scanning;
+		// they will be set back to true for those entries which will be found during the file trees walks
+		entry.SrcPathInfo.Exists = false
+		entry.CopyPathInfo.Exists = false
 	}
 }
 
@@ -32,13 +35,13 @@ func (m *DirEntriesMap) UpdateValueByKey(key string, valueUpdater func(entry *En
 	m.eMap[key] = entry
 }
 
-func (m *DirEntriesMap) RemoveInactive() {
+func (m *DirEntriesMap) RemoveObsolete() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	keysForRemoval := make([]string, 0, len(m.eMap))
 	for key, e := range m.eMap {
-		isInactive := !e.Active && !e.SrcPathInfo.Exists && !e.CopyPathInfo.Exists && e.Operation == nil
-		if isInactive {
+		isObsolete := !e.SrcPathInfo.Exists && !e.CopyPathInfo.Exists && e.Operation == nil
+		if isObsolete {
 			keysForRemoval = append(keysForRemoval, key)
 		}
 	}

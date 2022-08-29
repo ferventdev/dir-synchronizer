@@ -37,7 +37,7 @@ func (d *dirScanner) scanOnce(ctx context.Context) error {
 		return fmt.Errorf("cannot walk through the copy dir file tree: %w", err)
 	}
 
-	d.entriesMap.RemoveInactive()
+	d.entriesMap.RemoveObsolete()
 
 	d.log.Debug("scanOnce finished", log.Duration("tookTime", time.Since(start)))
 	return ctx.Err()
@@ -72,10 +72,7 @@ func (d *dirScanner) walk(ctx context.Context, root string, pathInfoSetter func(
 			Size:     info.Size(),
 			ModTime:  info.ModTime(),
 		}
-		d.entriesMap.UpdateValueByKey(path, func(entry *model.EntryInfo) {
-			entry.Active = true
-			pathInfoSetter(entry, pi)
-		})
+		d.entriesMap.UpdateValueByKey(path, func(entry *model.EntryInfo) { pathInfoSetter(entry, pi) })
 
 		d.log.Debug("entry", log.String("path", path), log.Any("info", pi))
 		return nil

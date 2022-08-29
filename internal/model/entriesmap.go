@@ -16,10 +16,33 @@ func NewDirEntriesMap() *DirEntriesMap {
 	return &DirEntriesMap{eMap: make(map[string]EntryInfo, 10)}
 }
 
+func (m *DirEntriesMap) PrepareForScan() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for _, entry := range m.eMap {
+		entry.Active = false // we reset the Active flag at the beginning of each file tree scan
+	}
+}
+
 func (m *DirEntriesMap) UpdateValueByKey(key string, valueUpdater func(entry *EntryInfo)) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	entry := m.eMap[key] // entry's zero value will be fine as well
 	valueUpdater(&entry)
 	m.eMap[key] = entry
+}
+
+func (m *DirEntriesMap) RemoveInactive() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	keysForRemoval := make([]string, 0, len(m.eMap))
+	for key, e := range m.eMap {
+		isInactive := !e.Active && !e.SrcPathInfo.Exists && !e.CopyPathInfo.Exists && e.Operation == nil
+		if isInactive {
+			keysForRemoval = append(keysForRemoval, key)
+		}
+	}
+	for _, key := range keysForRemoval {
+		delete(m.eMap, key)
+	}
 }

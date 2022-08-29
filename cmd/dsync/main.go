@@ -25,6 +25,7 @@ func main() {
 		exit(err, 1)
 	}
 
+	// this print proves graceful shutdown
 	fmt.Printf("Directories Synchronizer process (PID = %d) has been stopped\n", pid)
 }
 
@@ -43,7 +44,7 @@ func run(stg *settings.Settings, pid int) error {
 	defer logger.Sync()
 
 	logger.Debug("logger initialized")
-	logger.Debug("CLI args successfully parsed", log.Any("settings", *stg))
+	logger.Debug("cli args successfully parsed", log.Any("settings", *stg))
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
 	defer stop()

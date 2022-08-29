@@ -43,7 +43,7 @@ func run(stg *settings.Settings, pid int) error {
 	defer logger.Sync()
 
 	logger.Debug("logger initialized")
-	logger.Debug(fmt.Sprintf("settings: %+v", *stg))
+	logger.Debug("CLI args successfully parsed", log.Any("settings", *stg))
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
 	defer stop()

@@ -3,11 +3,13 @@ package dirsyncer
 import (
 	"context"
 	"dsync/internal/log"
+	"dsync/internal/model"
 	"dsync/internal/settings"
 	"fmt"
 	"time"
 )
 
+//DirSyncer is the main service of the app, that is responsible for the synchronization between the source and copy dirs.
 type DirSyncer struct {
 	log      log.Logger
 	settings settings.Settings
@@ -30,7 +32,7 @@ func (d *DirSyncer) Start(ctx context.Context, stop context.CancelFunc) (err err
 		}
 	}()
 
-	eMap := newDirEntriesMap()
+	eMap := model.NewDirEntriesMap()
 	dirScanner := newDirScanner(d.log, d.settings, eMap)
 
 	if d.settings.Once {

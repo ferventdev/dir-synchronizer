@@ -5,6 +5,7 @@ import (
 	"dsync/internal/log"
 	"dsync/internal/model"
 	"dsync/internal/settings"
+	"dsync/pkg/helpers/run"
 	"fmt"
 	"io/fs"
 	"path/filepath"
@@ -22,19 +23,43 @@ func newDirScanner(logger log.Logger, stg settings.Settings, eMap *model.DirEntr
 	return &dirScanner{log: logger, settings: stg, entriesMap: eMap}
 }
 
-func (d *dirScanner) scanOnce(ctx context.Context) error {
+func (d *dirScanner) scanOnce(parentCtx context.Context) error {
 	d.log.Debug("scanOnce started")
 	start := time.Now()
 
 	d.entriesMap.PrepareForScan()
 
-	// here we recursively walk through the source dir file tree and save these files' info into the map
-	if err := d.walk(ctx, d.settings.SrcDir, (*model.EntryInfo).SetSrcPathInfo); err != nil {
-		return fmt.Errorf("cannot walk through the source dir file tree: %w", err)
-	}
-	// here we recursively walk through the copy dir file tree and save these files' info into the map
-	if err := d.walk(ctx, d.settings.CopyDir, (*model.EntryInfo).SetCopyPathInfo); err != nil {
-		return fmt.Errorf("cannot walk through the copy dir file tree: %w", err)
+	ctx, cancel := context.WithCancel(parentCtx)
+	defer cancel()
+
+	errCh1 := run.AsyncWithError(func() error {
+		// here we recursively walk through the source dir file tree and save these files' info into the map
+		if err := d.walk(ctx, d.settings.SrcDir, (*model.EntryInfo).SetSrcPathInfo); err != nil {
+			return fmt.Errorf("cannot walk through the source dir file tree: %w", err)
+		}
+		return nil
+	})
+	errCh2 := run.AsyncWithError(func() error {
+		// here we recursively walk through the copy dir file tree and save these files' info into the map
+		if err := d.walk(ctx, d.settings.CopyDir, (*model.EntryInfo).SetCopyPathInfo); err != nil {
+			return fmt.Errorf("cannot walk through the copy dir file tree: %w", err)
+		}
+		return nil
+	})
+
+	for i := 0; i < 2; i++ {
+		select {
+		case err1 := <-errCh1:
+			if err1 != nil {
+				return err1
+			}
+			errCh1 = nil // this excludes errCh1 from select on the next iteration
+		case err2 := <-errCh2:
+			if err2 != nil {
+				return err2
+			}
+			errCh2 = nil // this excludes errCh2 from select on the next iteration
+		}
 	}
 
 	d.entriesMap.RemoveObsolete()

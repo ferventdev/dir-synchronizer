@@ -14,7 +14,9 @@ const (
 var (
 	Any      = zap.Any
 	Duration = zap.Duration
+	Int64    = zap.Int64
 	String   = zap.String
+	Time     = zap.Time
 )
 
 type Field = zap.Field

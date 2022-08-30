@@ -22,7 +22,7 @@ func (pi *PathInfo) IsSameAs(copy PathInfo) bool {
 type EntryInfo struct {
 	SrcPathInfo  PathInfo
 	CopyPathInfo PathInfo
-	Operation    *Operation
+	OperationPtr *Operation
 }
 
 //SetSrcPathInfo is a convenience setter for (d *dirScanner) walk.
@@ -33,4 +33,7 @@ func (ei *EntryInfo) SetSrcPathInfo(pi PathInfo) {
 //SetCopyPathInfo  is a convenience setter for (d *dirScanner) walk.
 func (ei *EntryInfo) SetCopyPathInfo(pi PathInfo) {
 	ei.CopyPathInfo = pi
+}
+func (ei *EntryInfo) IsSyncRequired() bool {
+	return !ei.SrcPathInfo.IsSameAs(ei.CopyPathInfo)
 }

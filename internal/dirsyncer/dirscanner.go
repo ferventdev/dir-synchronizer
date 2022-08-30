@@ -78,6 +78,12 @@ func (d *dirScanner) walk(ctx context.Context, root string, pathInfoSetter func(
 			return fmt.Errorf("cannot visit the entry %q: %v", fullPath, err)
 		}
 
+		// in case of decision to sync empty dirs as well this if-clause below should be removed;
+		// yet so far, I decided not to sync empty dirs, i.e. only all files (recursively) are synchronized
+		if de.IsDir() {
+			return nil
+		}
+
 		path, err := filepath.Rel(root, fullPath)
 		if err != nil {
 			return fmt.Errorf("cannot get a relative path: %v", err)
@@ -100,7 +106,11 @@ func (d *dirScanner) walk(ctx context.Context, root string, pathInfoSetter func(
 		}
 		d.entriesMap.UpdateValueByKey(path, func(entry *model.EntryInfo) { pathInfoSetter(entry, pi) })
 
-		d.log.Debug("entry", log.String("path", path), log.Any("info", pi))
+		d.log.Debug("entry scanned",
+			log.String("path", path),
+			log.Int64("size", pi.Size),
+			log.Time("modTime", pi.ModTime),
+		)
 		return nil
 	})
 }

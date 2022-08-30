@@ -24,6 +24,33 @@ func newTaskScheduler(logger log.Logger, stg settings.Settings, eMap *model.DirE
 }
 
 func (s *taskScheduler) scheduleOnce(ctx context.Context) error {
-	// todo
+	if err := s.entriesMap.ForEach(
+		func(key string, eMap map[string]model.EntryInfo) error {
+			entry := eMap[key] // entry may have zero value
+			op := entry.OperationPtr
+
+			// if the operation took place earlier, and it's over now, we should clear it
+			if op.IsNotNilAndOver() {
+				entry.OperationPtr = nil
+				eMap[key] = entry
+				return ctx.Err()
+			}
+
+			if entry.IsSyncRequired() {
+				if op == nil {
+					//todo: create new task (with required sync operation) and enqueue it
+				}
+			} else {
+				if op != nil && op.Status == model.OperationInProgress {
+					//todo: try to cancel the task in progress, because sync is not required anymore
+				}
+			}
+
+			return ctx.Err()
+		},
+	); err != nil {
+		return err
+	}
+
 	return ctx.Err()
 }

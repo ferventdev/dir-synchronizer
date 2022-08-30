@@ -10,6 +10,11 @@ import (
 	"time"
 )
 
+const (
+	maxConsecutiveErrors = 3
+	tasksQueueCapacity   = 100
+)
+
 //DirSyncer is the main service of the app, that is responsible for the synchronization between the source and copy dirs.
 type DirSyncer struct {
 	log      log.Logger
@@ -37,16 +42,17 @@ func (d *DirSyncer) Start(ctx context.Context, stop context.CancelFunc) (err err
 
 	eMap := model.NewDirEntriesMap()
 	dirScanner := newDirScanner(d.log, d.settings, eMap)
+	tasks := make(chan task, tasksQueueCapacity) // we don't want scheduler to block until its tasks queue is full
+	scheduler := newTaskScheduler(d.log, d.settings, eMap, tasks)
 
 	if d.settings.Once {
-		err := scanAndScheduleTasks(ctx, dirScanner)
+		err := scanAndScheduleTasks(ctx, dirScanner, scheduler)
 		if errors.Is(err, context.Canceled) {
 			return nil
 		}
 		return err // no need to count inner errors in case of only one execution cycle (-once flag)
 	}
 
-	const maxConsecutiveErrors = 3
 	errCount := 0
 	ticker := time.NewTicker(d.settings.ScanPeriod)
 	defer ticker.Stop()
@@ -56,7 +62,7 @@ func (d *DirSyncer) Start(ctx context.Context, stop context.CancelFunc) (err err
 			stop() // stop receiving signal notifications as soon as possible
 			return nil
 		case <-ticker.C:
-			err := scanAndScheduleTasks(ctx, dirScanner)
+			err := scanAndScheduleTasks(ctx, dirScanner, scheduler)
 			if errors.Is(err, context.Canceled) {
 				return nil
 			}
@@ -67,10 +73,12 @@ func (d *DirSyncer) Start(ctx context.Context, stop context.CancelFunc) (err err
 	}
 }
 
-func scanAndScheduleTasks(ctx context.Context, dirScanner *dirScanner) error {
+func scanAndScheduleTasks(ctx context.Context, dirScanner *dirScanner, scheduler *taskScheduler) error {
 	if err := dirScanner.scanOnce(ctx); err != nil {
 		return err
 	}
-	//todo: schedule tasks
+	if err := scheduler.scheduleOnce(ctx); err != nil {
+		return err
+	}
 	return nil
 }

@@ -10,9 +10,10 @@ import (
 	"io/fs"
 	"path/filepath"
 	"strings"
-	"time"
 )
 
+//dirScanner service is responsible for scanning source and copy directories for files (recursively) and
+//saving their entry's info into the DirEntriesMap.
 type dirScanner struct {
 	log        log.Logger
 	settings   settings.Settings
@@ -24,9 +25,8 @@ func newDirScanner(logger log.Logger, stg settings.Settings, eMap *model.DirEntr
 }
 
 func (d *dirScanner) scanOnce(parentCtx context.Context) error {
-	d.log.Debug("scanOnce started")
-	start := time.Now()
-
+	//d.log.Debug("scanOnce started")
+	//start := time.Now()
 	d.entriesMap.PrepareForScan()
 
 	ctx, cancel := context.WithCancel(parentCtx)
@@ -49,6 +49,8 @@ func (d *dirScanner) scanOnce(parentCtx context.Context) error {
 
 	for i := 0; i < 2; i++ {
 		select {
+		case <-ctx.Done():
+			return ctx.Err()
 		case err1 := <-errCh1:
 			if err1 != nil {
 				return err1
@@ -63,8 +65,7 @@ func (d *dirScanner) scanOnce(parentCtx context.Context) error {
 	}
 
 	d.entriesMap.RemoveObsolete()
-
-	d.log.Debug("scanOnce finished", log.Duration("tookTime", time.Since(start)))
+	//d.log.Debug("scanOnce finished", log.Duration("tookTime", time.Since(start)))
 	return ctx.Err()
 }
 

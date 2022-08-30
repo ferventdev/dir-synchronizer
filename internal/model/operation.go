@@ -1,5 +1,7 @@
 package model
 
+import "time"
+
 //Status of the sync operation.
 type Status string
 
@@ -12,5 +14,6 @@ const (
 
 // Operation - synchronization operation between the dir entry in the source directory and same entry in the copy directory.
 type Operation struct {
-	status Status
+	Status      Status
+	ScheduledAt time.Time
 }

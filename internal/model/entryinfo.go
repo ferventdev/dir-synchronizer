@@ -11,6 +11,13 @@ type PathInfo struct {
 	ModTime  time.Time
 }
 
+func (pi *PathInfo) IsSameAs(copy PathInfo) bool {
+	if !pi.Exists && !copy.Exists {
+		return true
+	}
+	return pi.Exists && copy.Exists && (pi.IsDir == copy.IsDir) && (pi.Size == copy.Size) && (pi.ModTime == copy.ModTime)
+}
+
 //EntryInfo holds info about same dir entry in BOTH files trees (source and copy) and the sync operation between them.
 type EntryInfo struct {
 	SrcPathInfo  PathInfo
@@ -19,11 +26,11 @@ type EntryInfo struct {
 }
 
 //SetSrcPathInfo is a convenience setter for (d *dirScanner) walk.
-func (e *EntryInfo) SetSrcPathInfo(pi PathInfo) {
-	e.SrcPathInfo = pi
+func (ei *EntryInfo) SetSrcPathInfo(pi PathInfo) {
+	ei.SrcPathInfo = pi
 }
 
 //SetCopyPathInfo  is a convenience setter for (d *dirScanner) walk.
-func (e *EntryInfo) SetCopyPathInfo(pi PathInfo) {
-	e.CopyPathInfo = pi
+func (ei *EntryInfo) SetCopyPathInfo(pi PathInfo) {
+	ei.CopyPathInfo = pi
 }

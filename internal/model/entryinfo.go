@@ -34,6 +34,15 @@ func (ei *EntryInfo) SetSrcPathInfo(pi PathInfo) {
 func (ei *EntryInfo) SetCopyPathInfo(pi PathInfo) {
 	ei.CopyPathInfo = pi
 }
+
+func (ei *EntryInfo) SetOperation(op *Operation) {
+	ei.OperationPtr = op
+}
+
 func (ei *EntryInfo) IsSyncRequired() bool {
 	return !ei.SrcPathInfo.IsSameAs(ei.CopyPathInfo)
+}
+
+func (ei *EntryInfo) ChooseOperationKind() OperationKind {
+	return "" //todo
 }

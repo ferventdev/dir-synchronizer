@@ -15,6 +15,7 @@ var (
 	Any      = zap.Any
 	Duration = zap.Duration
 	Int64    = zap.Int64
+	Uint64   = zap.Uint64
 	String   = zap.String
 	Time     = zap.Time
 )

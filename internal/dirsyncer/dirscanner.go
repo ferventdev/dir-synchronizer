@@ -80,6 +80,7 @@ func (d *dirScanner) walk(ctx context.Context, root string, pathInfoSetter func(
 
 		// in case of decision to sync empty dirs as well this if-clause below should be removed;
 		// yet so far, I decided not to sync empty dirs, i.e. only all files (recursively) are synchronized
+		// non-empty dirs will be synced automatically as a part of files full path
 		if de.IsDir() {
 			return nil
 		}

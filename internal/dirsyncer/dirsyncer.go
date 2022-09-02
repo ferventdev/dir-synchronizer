@@ -42,7 +42,7 @@ func (d *DirSyncer) Start(ctx context.Context, stop context.CancelFunc) (err err
 
 	eMap := model.NewDirEntriesMap()
 	dirScanner := newDirScanner(d.log, d.settings, eMap)
-	tasks := make(chan task, tasksQueueCapacity) // we don't want scheduler to block until its tasks queue is full
+	tasks := make(chan Task, tasksQueueCapacity) // we don't want scheduler to block until its tasks queue is full
 	scheduler := newTaskScheduler(d.log, d.settings, eMap, tasks)
 
 	if d.settings.Once {

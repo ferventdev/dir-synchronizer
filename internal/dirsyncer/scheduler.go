@@ -5,11 +5,13 @@ import (
 	"dsync/internal/log"
 	"dsync/internal/model"
 	"dsync/internal/settings"
+	"errors"
 )
 
-type task struct {
-	path      string          // it's a key in DirEntriesMap
-	entryInfo model.EntryInfo // it's a value in DirEntriesMap
+//Task is a sync task. taskScheduler puts it into its queue.
+type Task struct {
+	Path      string          `json:"path"`  // it's a key in DirEntriesMap
+	EntryInfo model.EntryInfo `json:"entry"` // it's a value in DirEntriesMap
 }
 
 //taskScheduler service is responsible for scheduling sync operations that should be done in order to eliminate
@@ -18,15 +20,15 @@ type taskScheduler struct {
 	log        log.Logger
 	settings   settings.Settings
 	entriesMap *model.DirEntriesMap
-	queue      chan<- task
+	queue      chan<- Task // only taskScheduler can write to this channel
 }
 
-func newTaskScheduler(logger log.Logger, stg settings.Settings, eMap *model.DirEntriesMap, tasks chan<- task) *taskScheduler {
+func newTaskScheduler(logger log.Logger, stg settings.Settings, eMap *model.DirEntriesMap, tasks chan<- Task) *taskScheduler {
 	return &taskScheduler{log: logger, settings: stg, entriesMap: eMap, queue: tasks}
 }
 
 func (s *taskScheduler) scheduleOnce(ctx context.Context) error {
-	var tasksToEnqueue []task
+	var tasksToEnqueue []Task
 	if err := s.entriesMap.ForEach(
 		func(key string, eMap map[string]model.EntryInfo) error {
 			entry := eMap[key] // entry may have zero value
@@ -42,13 +44,13 @@ func (s *taskScheduler) scheduleOnce(ctx context.Context) error {
 			if entry.IsSyncRequired() {
 				// here we create new sync task
 				if op == nil {
-					tasksToEnqueue = append(tasksToEnqueue, task{path: key, entryInfo: entry})
+					tasksToEnqueue = append(tasksToEnqueue, Task{Path: key, EntryInfo: entry})
 				}
 				return ctx.Err()
 			}
 
 			// if sync not required while it's already in progress we should cancel it
-			if op != nil && op.Status == model.OperationInProgress {
+			if op != nil && op.Status == model.OpStatusInProgress {
 				if op.CancelFn != nil {
 					op.CancelFn()
 				} else {
@@ -70,13 +72,22 @@ func (s *taskScheduler) scheduleOnce(ctx context.Context) error {
 	childCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	for _, t := range tasksToEnqueue {
-		op := model.NewOperation(t.entryInfo.ChooseOperationKind())
-		t.entryInfo.OperationPtr = op
+		opKind := t.EntryInfo.ResolveOperationKind()
+		if opKind == model.OpKindNone {
+			s.log.Error("sync operation kind cannot be properly resolved", log.Any("task", t))
+			continue
+		}
+		op := model.NewOperation(opKind)
+		t.EntryInfo.OperationPtr = op
 		select {
 		case <-childCtx.Done():
+			if errors.Is(childCtx.Err(), context.Canceled) { // may happen only at the shutdown
+				close(s.queue)
+			}
 			return childCtx.Err()
 		case s.queue <- t: // enqueue new task with a scheduled operation inside to the queue of tasks
-			s.entriesMap.UpdateValueByKey(t.path, func(entry *model.EntryInfo) { entry.SetOperation(op) })
+			s.entriesMap.UpdateValueByKey(t.Path, func(entry *model.EntryInfo) { entry.SetOperation(op) })
+			s.log.Debug("new sync task enqueued by scheduler", log.Any("task", t))
 		}
 	}
 

@@ -42,11 +42,18 @@ func (d *DirSyncer) Start(ctx context.Context, stop context.CancelFunc) (err err
 
 	eMap := model.NewDirEntriesMap()
 	dirScanner := newDirScanner(d.log, d.settings, eMap)
+
 	tasks := make(chan Task, tasksQueueCapacity) // we don't want scheduler to block until its tasks queue is full
+
+	executor := newTaskExecutor(d.log, d.settings, eMap, tasks)
+	executor.Start(ctx) // starts workers in goroutines
+	defer executor.Stop()
+
 	scheduler := newTaskScheduler(d.log, d.settings, eMap, tasks)
+	defer close(tasks)
 
 	if d.settings.Once {
-		err := scanAndScheduleTasks(ctx, dirScanner, scheduler)
+		err := scanDirsAndScheduleTasks(ctx, dirScanner, scheduler)
 		if errors.Is(err, context.Canceled) {
 			return nil
 		}
@@ -62,7 +69,7 @@ func (d *DirSyncer) Start(ctx context.Context, stop context.CancelFunc) (err err
 			stop() // stop receiving signal notifications as soon as possible
 			return nil
 		case <-ticker.C:
-			err := scanAndScheduleTasks(ctx, dirScanner, scheduler)
+			err := scanDirsAndScheduleTasks(ctx, dirScanner, scheduler)
 			if errors.Is(err, context.Canceled) {
 				return nil
 			}
@@ -73,7 +80,7 @@ func (d *DirSyncer) Start(ctx context.Context, stop context.CancelFunc) (err err
 	}
 }
 
-func scanAndScheduleTasks(ctx context.Context, dirScanner *dirScanner, scheduler *taskScheduler) error {
+func scanDirsAndScheduleTasks(ctx context.Context, dirScanner *dirScanner, scheduler *taskScheduler) error {
 	if err := dirScanner.scanOnce(ctx); err != nil {
 		return err
 	}

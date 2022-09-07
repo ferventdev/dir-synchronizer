@@ -81,8 +81,10 @@ func (s *taskScheduler) scheduleOnce(ctx context.Context) error {
 		t.EntryInfo.OperationPtr = op
 		select {
 		case <-childCtx.Done():
-			if errors.Is(childCtx.Err(), context.Canceled) { // may happen only at the shutdown
-				close(s.queue)
+			// if timeout is exceeded we don't consider that as an error,
+			// because we'll be back to this method on the next sync cycle
+			if !s.settings.Once && errors.Is(childCtx.Err(), context.DeadlineExceeded) {
+				return nil
 			}
 			return childCtx.Err()
 		case s.queue <- t: // enqueue new task with a scheduled operation inside to the queue of tasks

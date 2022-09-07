@@ -7,13 +7,16 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 )
 
 const (
-	minScanPeriod = time.Second
-	maxScanPeriod = 10 * time.Second
+	minScanPeriod   = time.Second
+	maxScanPeriod   = 10 * time.Second
+	minWorkersCount = 1
+	maxWorkersCount = 1000
 )
 
 type Settings struct {
@@ -25,6 +28,7 @@ type Settings struct {
 	LogToStd      bool
 	Once          bool
 	PrintPID      bool
+	WorkersCount  int
 }
 
 func New(commandArgs []string) (*Settings, error) {
@@ -47,6 +51,9 @@ func New(commandArgs []string) (*Settings, error) {
 	)
 	flagSet.DurationVar(&stg.ScanPeriod, "scanperiod", time.Second,
 		fmt.Sprintf("period of directories scanning, must be a value between %v and %v", minScanPeriod, maxScanPeriod))
+	flagSet.IntVar(&stg.WorkersCount, "workers", runtime.NumCPU(),
+		fmt.Sprintf("the number of workers that will be started to execute all sync operations, "+
+			"must be a value between %d and %d", minWorkersCount, maxWorkersCount))
 
 	flagSet.Parse(commandArgs)
 
@@ -82,6 +89,10 @@ func (stg *Settings) Validate() error {
 	if stg.ScanPeriod < minScanPeriod || stg.ScanPeriod > maxScanPeriod {
 		return fmt.Errorf("period of directories scanning must be a value between %v and %v, while it is %v",
 			minScanPeriod, maxScanPeriod, stg.ScanPeriod)
+	}
+	if stg.WorkersCount < minWorkersCount || stg.WorkersCount > maxWorkersCount {
+		return fmt.Errorf("number of workers must be a value between %d and %d, while it is %d",
+			minWorkersCount, maxWorkersCount, stg.WorkersCount)
 	}
 	return nil
 }

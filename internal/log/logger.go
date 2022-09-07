@@ -20,6 +20,10 @@ var (
 	Time     = zap.Time
 )
 
+func Cause(err error) Field {
+	return zap.NamedError("cause", err)
+}
+
 type Field = zap.Field
 
 type Logger interface {

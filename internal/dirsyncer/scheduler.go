@@ -12,6 +12,16 @@ import (
 type Task struct {
 	Path      string          `json:"path"`  // it's a key in DirEntriesMap
 	EntryInfo model.EntryInfo `json:"entry"` // it's a value in DirEntriesMap
+	ready     chan struct{}   // is task ready to be processed by a worker
+}
+
+func NewTask(path string, ei model.EntryInfo) Task {
+	return Task{Path: path, EntryInfo: ei, ready: make(chan struct{})}
+}
+
+//setReady tells a worker (that will process this task) that this task is ready for processing.
+func (t *Task) setReady() {
+	close(t.ready)
 }
 
 //taskScheduler service is responsible for scheduling sync operations that should be done in order to eliminate
@@ -44,7 +54,7 @@ func (s *taskScheduler) scheduleOnce(ctx context.Context) error {
 			if entry.IsSyncRequired() {
 				// here we create new sync task
 				if op == nil {
-					tasksToEnqueue = append(tasksToEnqueue, Task{Path: key, EntryInfo: entry})
+					tasksToEnqueue = append(tasksToEnqueue, NewTask(key, entry))
 				}
 				return ctx.Err()
 			}
@@ -89,7 +99,8 @@ func (s *taskScheduler) scheduleOnce(ctx context.Context) error {
 			return childCtx.Err()
 		case s.queue <- t: // enqueue new task with a scheduled operation inside to the queue of tasks
 			s.entriesMap.UpdateValueByKey(t.Path, func(entry *model.EntryInfo) { entry.SetOperation(op) })
-			s.log.Debug("new sync task enqueued by scheduler", log.Any("task", t))
+			t.setReady()
+			s.log.Debug("new task enqueued by scheduler", log.Any("task", t))
 		}
 	}
 

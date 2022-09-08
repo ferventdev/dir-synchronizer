@@ -13,7 +13,9 @@ const (
 
 var (
 	Any      = zap.Any
+	Bool     = zap.Bool
 	Duration = zap.Duration
+	Error    = zap.Error
 	Int64    = zap.Int64
 	Uint64   = zap.Uint64
 	String   = zap.String

@@ -45,14 +45,14 @@ func (ei *EntryInfo) IsSyncRequired() bool {
 
 func (ei *EntryInfo) ResolveOperationKind() OperationKind {
 	src, cp := ei.SrcPathInfo, ei.CopyPathInfo
+	// so far, I decided not to sync empty dirs, i.e. only all files (recursively) are synchronized
+	// non-empty dirs will be synced automatically as a part of files full path
 	switch {
-	case src.Exists && !cp.Exists:
+	case src.Exists && !src.IsDir && !cp.Exists:
 		return OpKindCopy
-	case !src.Exists && cp.Exists:
+	case !src.Exists && cp.Exists && !cp.IsDir:
 		return OpKindRemove
 	case src.Exists && cp.Exists && !src.IsDir && !cp.IsDir && (src.Size != cp.Size || src.ModTime != cp.ModTime):
-		// so far, I decided not to sync empty dirs, i.e. only all files (recursively) are synchronized
-		// non-empty dirs will be synced automatically as a part of files full path
 		return OpKindReplace
 	default: // normally this will never happen
 		return OpKindNone

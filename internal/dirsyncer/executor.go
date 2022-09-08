@@ -7,6 +7,10 @@ import (
 	"dsync/internal/settings"
 	"dsync/pkg/helpers/run"
 	"errors"
+	"fmt"
+	"io/fs"
+	"os"
+	"path/filepath"
 	"sync"
 	"time"
 )
@@ -68,6 +72,7 @@ func (e *taskExecutor) Stop() {
 	}
 }
 func (e *taskExecutor) process(ctx context.Context, task Task) error {
+	entry := &(task.EntryInfo)
 	select {
 	case <-ctx.Done():
 		return nil
@@ -78,9 +83,106 @@ func (e *taskExecutor) process(ctx context.Context, task Task) error {
 		e.entriesMap.UpdateValueByKey(task.Path, func(entry *model.EntryInfo) { entry.SetOperation(nil) })
 		return errTaskCannotGetReady
 	case <-task.ready: // usually this will be true instantly or as soon as possible
-		e.log.Debug("operation has been taken into processing", log.Uint64("opID", task.EntryInfo.OperationPtr.ID))
+		e.log.Debug("operation has been taken into processing", log.Uint64("opID", entry.OperationPtr.ID))
+	}
+
+	wasUpdated, err := e.actualizeEntryInfo(task.Path, entry)
+	if err != nil {
+		return fmt.Errorf("cannot actualize entry info: %v", err)
+	}
+	if wasUpdated {
+		e.log.Debug("entry info was actualized", log.Any("task", task))
 	}
 
 	//todo
 	return nil
+}
+
+func (e *taskExecutor) actualizeEntryInfo(path string, entry *model.EntryInfo) (bool, error) {
+	updated := false
+	srcPath := filepath.Join(e.settings.SrcDir, path)
+	copyPath := filepath.Join(e.settings.CopyDir, path)
+
+	// 1. actualize the source file info
+	srcInfo, err := os.Stat(srcPath)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) { // the source file at the path does NOT exist right now
+			if entry.SrcPathInfo.Exists {
+				entry.SrcPathInfo = model.PathInfo{}
+				updated = true
+			}
+		} else {
+			return false, err
+		}
+	} else { // the source file at the path exists right now
+		if entry.SrcPathInfo.Exists && entry.SrcPathInfo.FullPath != srcPath { // normally this should never happen
+			e.log.Warn("entry.SrcPathInfo has inactual FullPath",
+				log.String("fullPath", entry.SrcPathInfo.FullPath), log.String("srcPath", srcPath))
+			entry.SrcPathInfo.FullPath = srcPath
+			updated = true
+		}
+		if !entry.SrcPathInfo.Exists {
+			entry.SrcPathInfo.Exists = true
+			entry.SrcPathInfo.FullPath = srcPath
+			updated = true
+		}
+		if entry.SrcPathInfo.IsDir != srcInfo.IsDir() {
+			entry.SrcPathInfo.IsDir = srcInfo.IsDir()
+			updated = true
+		}
+		if entry.SrcPathInfo.Size != srcInfo.Size() {
+			entry.SrcPathInfo.Size = srcInfo.Size()
+			updated = true
+		}
+		if entry.SrcPathInfo.ModTime != srcInfo.ModTime() {
+			entry.SrcPathInfo.ModTime = srcInfo.ModTime()
+			updated = true
+		}
+	}
+
+	// 2. actualize the copy file info
+	copyInfo, err := os.Stat(copyPath)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) { // the copy file at the path does NOT exist right now
+			if entry.CopyPathInfo.Exists {
+				entry.CopyPathInfo = model.PathInfo{}
+				updated = true
+			}
+		} else {
+			return false, err
+		}
+	} else { // the copy file at the path exists right now
+		if entry.CopyPathInfo.Exists && entry.CopyPathInfo.FullPath != copyPath { // normally this should never happen
+			e.log.Warn("entry.CopyPathInfo has inactual FullPath",
+				log.String("fullPath", entry.CopyPathInfo.FullPath), log.String("copyPath", copyPath))
+			entry.CopyPathInfo.FullPath = copyPath
+			updated = true
+		}
+		if !entry.CopyPathInfo.Exists {
+			entry.CopyPathInfo.Exists = true
+			entry.CopyPathInfo.FullPath = copyPath
+			updated = true
+		}
+		if entry.CopyPathInfo.IsDir != copyInfo.IsDir() {
+			entry.CopyPathInfo.IsDir = copyInfo.IsDir()
+			updated = true
+		}
+		if entry.CopyPathInfo.Size != copyInfo.Size() {
+			entry.CopyPathInfo.Size = copyInfo.Size()
+			updated = true
+		}
+		if entry.CopyPathInfo.ModTime != copyInfo.ModTime() {
+			entry.CopyPathInfo.ModTime = copyInfo.ModTime()
+			updated = true
+		}
+	}
+
+	// 3. actualize the sync operation of the task
+	// todo
+
+	if updated {
+		// we need to update the entry info in the main common data structure
+		e.entriesMap.SetValueByKey(path, entry)
+	}
+	return updated, nil
 }

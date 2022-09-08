@@ -39,6 +39,12 @@ func (m *DirEntriesMap) UpdateValueByKey(key string, valueUpdater func(*EntryInf
 	m.eMap[key] = entry
 }
 
+func (m *DirEntriesMap) SetValueByKey(key string, ei *EntryInfo) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.eMap[key] = *ei
+}
+
 func (m *DirEntriesMap) RemoveObsolete() {
 	m.mu.Lock()
 	defer m.mu.Unlock()

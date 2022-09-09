@@ -71,8 +71,10 @@ func (e *taskExecutor) Stop() {
 		e.log.Error("taskExecutor has been abnormally stopped on timeout (awaiting for some its worker(s) failed)")
 	}
 }
+
 func (e *taskExecutor) process(ctx context.Context, task Task) error {
 	entry := &(task.EntryInfo)
+	op := entry.OperationPtr
 	select {
 	case <-ctx.Done():
 		return nil
@@ -83,22 +85,60 @@ func (e *taskExecutor) process(ctx context.Context, task Task) error {
 		e.entriesMap.UpdateValueByKey(task.Path, func(entry *model.EntryInfo) { entry.SetOperation(nil) })
 		return errTaskCannotGetReady
 	case <-task.ready: // usually this will be true instantly or as soon as possible
-		e.log.Debug("operation has been taken into processing", log.Uint64("opID", entry.OperationPtr.ID))
+		e.log.Debug("operation has been taken into processing", log.Uint64("opID", op.ID))
 	}
 
-	wasUpdated, err := e.actualizeEntryInfo(task.Path, entry)
+	wasUpdated, err := e.actualizeEntryPathsInfo(task.Path, entry)
 	if err != nil {
 		return fmt.Errorf("cannot actualize entry info: %v", err)
 	}
+
+	now := time.Now()
 	if wasUpdated {
-		e.log.Debug("entry info was actualized", log.Any("task", task))
+		// as long as entry paths info has changed, the operation may become not actual anymore,
+		// and in such case we may need to cancel or redefine it
+		if entry.IsSyncRequired() {
+			opKind := entry.ResolveOperationKind()
+			if opKind == model.OpKindNone {
+				op.CanceledAt = &now
+				op.Status = model.OpStatusCanceled
+				e.log.Debug("entry info was actualized, and is shows that sync is not required now, "+
+					"so the operation will be canceled", log.Any("task", task))
+			} else {
+				if op.Kind != opKind {
+					e.log.Debug("entry info was actualized, and is shows that the operation kind has changed",
+						log.Any("task", task))
+					op.Kind = opKind
+				}
+			}
+		} else { // sync is not required anymore, so we have to cancel the operation
+			op.CanceledAt = &now
+			op.Status = model.OpStatusCanceled
+			e.log.Debug("entry info was actualized, and is shows that sync is already achieved, "+
+				"so the operation will be canceled", log.Any("task", task))
+		}
+	} else {
+		// as long as entry paths info hasn't changed, we don't need to cancel or redefining the operation
+		e.log.Debug("entry info has not got any changes since task creation", log.Any("task", task))
 	}
+
+	if op.Status != model.OpStatusCanceled {
+		op.StartedAt = &now
+		op.Status = model.OpStatusInProgress
+	}
+	// anyway, we need to update the entry info (with operation inside) in the main common data structure
+	e.entriesMap.SetValueByKey(task.Path, entry)
+	if op.Status == model.OpStatusCanceled {
+		return nil // because no processing actually required
+	}
+
+	e.log.Debug("operation execution will start now", log.Any("task", task))
 
 	//todo
 	return nil
 }
 
-func (e *taskExecutor) actualizeEntryInfo(path string, entry *model.EntryInfo) (bool, error) {
+func (e *taskExecutor) actualizeEntryPathsInfo(path string, entry *model.EntryInfo) (bool, error) {
 	updated := false
 	srcPath := filepath.Join(e.settings.SrcDir, path)
 	copyPath := filepath.Join(e.settings.CopyDir, path)
@@ -177,12 +217,5 @@ func (e *taskExecutor) actualizeEntryInfo(path string, entry *model.EntryInfo) (
 		}
 	}
 
-	// 3. actualize the sync operation of the task
-	// todo
-
-	if updated {
-		// we need to update the entry info in the main common data structure
-		e.entriesMap.SetValueByKey(path, entry)
-	}
 	return updated, nil
 }

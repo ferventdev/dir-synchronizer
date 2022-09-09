@@ -49,12 +49,16 @@ func (ei *EntryInfo) ResolveOperationKind() OperationKind {
 	// non-empty dirs will be synced automatically as a part of files full path
 	switch {
 	case src.Exists && !src.IsDir && !cp.Exists:
-		return OpKindCopy
-	case !src.Exists && cp.Exists && !cp.IsDir:
-		return OpKindRemove
+		return OpKindCopyFile
+	case (!src.Exists || src.IsDir) && cp.Exists && !cp.IsDir:
+		return OpKindRemoveFile
+	case !src.Exists && cp.Exists && cp.IsDir:
+		return OpKindRemoveDir
+	case src.Exists && cp.Exists && !src.IsDir && cp.IsDir:
+		return OpKindReplaceDirWithFile
 	case src.Exists && cp.Exists && !src.IsDir && !cp.IsDir && (src.Size != cp.Size || src.ModTime != cp.ModTime):
-		return OpKindReplace
-	default: // normally this will never happen
+		return OpKindReplaceFile
+	default:
 		return OpKindNone
 	}
 }

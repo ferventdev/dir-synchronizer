@@ -10,19 +10,21 @@ import (
 type OperationStatus string
 
 const (
-	OpStatusScheduled  = "scheduled"
-	OpStatusInProgress = "in_progress"
-	OpStatusCanceled   = "canceled"
-	OpStatusCompleted  = "completed"
+	OpStatusScheduled  OperationStatus = "scheduled"
+	OpStatusInProgress OperationStatus = "in_progress"
+	OpStatusCanceled   OperationStatus = "canceled"
+	OpStatusCompleted  OperationStatus = "completed"
 )
 
 type OperationKind string
 
 const (
-	OpKindNone    = "none"
-	OpKindCopy    = "copy"
-	OpKindRemove  = "remove"
-	OpKindReplace = "replace"
+	OpKindNone               OperationKind = "none"
+	OpKindCopyFile           OperationKind = "copy_file"
+	OpKindRemoveFile         OperationKind = "remove_file"
+	OpKindRemoveDir          OperationKind = "remove_dir"
+	OpKindReplaceFile        OperationKind = "replace_file"
+	OpKindReplaceDirWithFile OperationKind = "replace_dir_with_file"
 )
 
 var generateOperationID = ut.CreateUint64IDGenerator()

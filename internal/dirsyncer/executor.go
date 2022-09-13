@@ -50,9 +50,9 @@ func (e *taskExecutor) Start(ctx context.Context) {
 						now := time.Now()
 						task.EntryInfo.OperationPtr.FailedAt = &now
 						task.EntryInfo.OperationPtr.Status = model.OpStatusFailed
-						e.log.Error("failed to execute the operation", log.Cause(err), log.Any("task", task))
+						e.log.Error("failed to execute operation", log.Cause(err), log.Any("task", task))
 					} else {
-						e.log.Debug("operation processing finished", log.Any("task", task)) //todo: remove
+						e.log.Debug("operation processing finished", task.log()...) //todo: remove
 					}
 					e.entriesMap.SetValueByKey(task.Path, &(task.EntryInfo))
 				}
@@ -64,7 +64,7 @@ func (e *taskExecutor) Start(ctx context.Context) {
 //Stop awaits this executor's workers to finish their processing. But it doesn't wait forever - there is a timeout.
 func (e *taskExecutor) Stop() {
 	done := make(chan struct{})
-	e.log.Debug("taskExecutor is awaiting its workers to finish processing")
+	e.log.Debug("taskExecutor awaiting its workers to finish processing")
 	go func() {
 		defer close(done)
 		e.wg.Wait()
@@ -72,9 +72,9 @@ func (e *taskExecutor) Stop() {
 	const executorStopTimeout = 5 * time.Second
 	select {
 	case <-done:
-		e.log.Debug("taskExecutor has been normally stopped")
+		e.log.Debug("taskExecutor normally stopped")
 	case <-time.After(executorStopTimeout):
-		e.log.Error("taskExecutor has been abnormally stopped on timeout (awaiting for some its worker(s) failed)")
+		e.log.Error("taskExecutor abnormally stopped on timeout (awaiting for some its worker(s) failed)")
 	}
 }
 
@@ -91,7 +91,7 @@ func (e *taskExecutor) process(ctx context.Context, task Task) error {
 		e.entriesMap.UpdateValueByKey(task.Path, func(entry *model.EntryInfo) { entry.SetOperation(nil) })
 		return errTaskCannotGetReady
 	case <-task.ready: // usually this will be true instantly or as soon as possible
-		e.log.Debug("operation has been taken into processing", log.Uint64("opID", op.ID))
+		e.log.Debug("operation taken into processing", task.log()...)
 	}
 
 	wasUpdated, err := e.actualizeEntryPathsInfo(task.Path, entry)
@@ -107,19 +107,16 @@ func (e *taskExecutor) process(ctx context.Context, task Task) error {
 			opKind := entry.ResolveOperationKind()
 			if opKind == model.OpKindNone {
 				op.CanceledAt, op.Status = &now, model.OpStatusCanceled
-				e.log.Debug("entry info was actualized, and is shows that sync is not required now, "+
-					"so the operation will be canceled", log.Any("task", task))
+				e.log.Debug("entry actualized, sync not required now, operation will be canceled", task.log()...)
 			} else {
 				if op.Kind != opKind {
 					op.Kind = opKind
-					e.log.Debug("entry info was actualized, and is shows that the operation kind has changed",
-						log.Any("task", task))
+					e.log.Debug("entry actualized, operation kind changed", task.log()...)
 				}
 			}
 		} else { // sync is not required anymore, so we have to cancel the operation
 			op.CanceledAt, op.Status = &now, model.OpStatusCanceled
-			e.log.Debug("entry info was actualized, and is shows that sync is already achieved, "+
-				"so the operation will be canceled", log.Any("task", task))
+			e.log.Debug("entry actualized, sync already achieved, operation will be canceled", task.log()...)
 		}
 	} else {
 		// as long as entry paths info hasn't changed, we don't need to cancel or redefining the operation
@@ -145,7 +142,7 @@ func (e *taskExecutor) process(ctx context.Context, task Task) error {
 	}
 	now = time.Now()
 	op.CompletedAt, op.Status = &now, model.OpStatusCompleted
-	e.log.Info("operation has been successfully executed", log.Uint64("opID", op.ID))
+	e.log.Info("operation successfully executed", task.log()...)
 	return nil
 }
 

@@ -24,6 +24,10 @@ func (t *Task) setReady() {
 	close(t.ready)
 }
 
+func (t *Task) log() []log.Field {
+	return []log.Field{log.String("path", t.Path), log.Any("operation", *(t.EntryInfo.OperationPtr))}
+}
+
 //taskScheduler service is responsible for scheduling sync operations that should be done in order to eliminate
 //the difference between the source and copy directories.
 type taskScheduler struct {
@@ -84,7 +88,7 @@ func (s *taskScheduler) scheduleOnce(ctx context.Context) error {
 	for _, t := range tasksToEnqueue {
 		opKind := t.EntryInfo.ResolveOperationKind()
 		if opKind == model.OpKindNone {
-			s.log.Error("sync operation kind cannot be properly resolved", log.Any("task", t))
+			s.log.Error("sync operation kind cannot be properly resolved", t.log()...)
 			continue
 		}
 		op := model.NewOperation(opKind)
@@ -99,7 +103,7 @@ func (s *taskScheduler) scheduleOnce(ctx context.Context) error {
 			return childCtx.Err()
 		case s.queue <- t: // enqueue new task with a scheduled operation inside to the queue of tasks
 			s.entriesMap.UpdateValueByKey(t.Path, func(entry *model.EntryInfo) { entry.SetOperation(op) })
-			s.log.Debug("new task enqueued by scheduler", log.Any("task", t))
+			s.log.Debug("new task enqueued by scheduler", t.log()...)
 			t.setReady() // tell the worker that task is ready for processing
 		}
 	}

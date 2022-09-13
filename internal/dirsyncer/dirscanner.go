@@ -107,11 +107,11 @@ func (d *dirScanner) walk(ctx context.Context, root string, pathInfoSetter func(
 		}
 		d.entriesMap.UpdateValueByKey(path, func(entry *model.EntryInfo) { pathInfoSetter(entry, pi) })
 
-		d.log.Debug("entry scanned",
-			log.String("path", path),
-			log.Int64("size", pi.Size),
-			log.Time("modTime", pi.ModTime),
-		)
+		//d.log.Debug("entry scanned",
+		//	log.String("path", path),
+		//	log.Int64("size", pi.Size),
+		//	log.Time("modTime", pi.ModTime),
+		//)
 		return nil
 	})
 }

@@ -47,8 +47,14 @@ func (e *taskExecutor) Start(ctx context.Context) {
 						return
 					}
 					if err := run.WithError(func() error { return e.process(ctx, task) }); err != nil {
-						e.log.Error("failed to execute the task", log.Cause(err), log.Any("task", task))
+						now := time.Now()
+						task.EntryInfo.OperationPtr.FailedAt = &now
+						task.EntryInfo.OperationPtr.Status = model.OpStatusFailed
+						e.log.Error("failed to execute the operation", log.Cause(err), log.Any("task", task))
+					} else {
+						e.log.Debug("operation processing finished", log.Any("task", task)) //todo: remove
 					}
+					e.entriesMap.SetValueByKey(task.Path, &(task.EntryInfo))
 				}
 			}
 		}()
@@ -100,31 +106,32 @@ func (e *taskExecutor) process(ctx context.Context, task Task) error {
 		if entry.IsSyncRequired() {
 			opKind := entry.ResolveOperationKind()
 			if opKind == model.OpKindNone {
-				op.CanceledAt = &now
-				op.Status = model.OpStatusCanceled
+				op.CanceledAt, op.Status = &now, model.OpStatusCanceled
 				e.log.Debug("entry info was actualized, and is shows that sync is not required now, "+
 					"so the operation will be canceled", log.Any("task", task))
 			} else {
 				if op.Kind != opKind {
+					op.Kind = opKind
 					e.log.Debug("entry info was actualized, and is shows that the operation kind has changed",
 						log.Any("task", task))
-					op.Kind = opKind
 				}
 			}
 		} else { // sync is not required anymore, so we have to cancel the operation
-			op.CanceledAt = &now
-			op.Status = model.OpStatusCanceled
+			op.CanceledAt, op.Status = &now, model.OpStatusCanceled
 			e.log.Debug("entry info was actualized, and is shows that sync is already achieved, "+
 				"so the operation will be canceled", log.Any("task", task))
 		}
 	} else {
 		// as long as entry paths info hasn't changed, we don't need to cancel or redefining the operation
-		e.log.Debug("entry info has not got any changes since task creation", log.Any("task", task))
+		//e.log.Debug("entry info has not got any changes since task creation", log.Any("task", task))
 	}
 
 	if op.Status != model.OpStatusCanceled {
-		op.StartedAt = &now
-		op.Status = model.OpStatusInProgress
+		if ctx.Err() != nil {
+			op.CanceledAt, op.Status = &now, model.OpStatusCanceled
+		} else {
+			op.StartedAt, op.Status = &now, model.OpStatusInProgress
+		}
 	}
 	// anyway, we need to update the entry info (with operation inside) in the main common data structure
 	e.entriesMap.SetValueByKey(task.Path, entry)
@@ -132,9 +139,13 @@ func (e *taskExecutor) process(ctx context.Context, task Task) error {
 		return nil // because no processing actually required
 	}
 
-	e.log.Debug("operation execution will start now", log.Any("task", task))
-
-	//todo
+	//e.log.Debug("operation execution will start now", log.Any("task", task))
+	if err := e.executeOperation(ctx, entry); err != nil {
+		return err
+	}
+	now = time.Now()
+	op.CompletedAt, op.Status = &now, model.OpStatusCompleted
+	e.log.Info("operation has been successfully executed", log.Uint64("opID", op.ID))
 	return nil
 }
 
@@ -218,4 +229,22 @@ func (e *taskExecutor) actualizeEntryPathsInfo(path string, entry *model.EntryIn
 	}
 
 	return updated, nil
+}
+
+func (e *taskExecutor) executeOperation(ctx context.Context, entry *model.EntryInfo) error {
+	switch entry.OperationPtr.Kind {
+	case model.OpKindCopyFile:
+		// todo
+	case model.OpKindRemoveFile:
+		// todo
+	case model.OpKindRemoveDir:
+		// todo
+	case model.OpKindReplaceFile:
+		// todo
+	case model.OpKindReplaceDirWithFile:
+		// todo
+	default: // should never happen
+		panic("invalid operation kind: " + entry.OperationPtr.Kind)
+	}
+	return nil
 }

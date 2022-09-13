@@ -59,7 +59,7 @@ func (s *taskScheduler) scheduleOnce(ctx context.Context) error {
 				return ctx.Err()
 			}
 
-			// if sync not required while it's already in progress we should cancel it
+			// if sync not required, but the sync operation is already in progress - we should cancel it
 			if op != nil && op.Status == model.OpStatusInProgress {
 				if op.CancelFn != nil {
 					op.CancelFn()
@@ -99,8 +99,8 @@ func (s *taskScheduler) scheduleOnce(ctx context.Context) error {
 			return childCtx.Err()
 		case s.queue <- t: // enqueue new task with a scheduled operation inside to the queue of tasks
 			s.entriesMap.UpdateValueByKey(t.Path, func(entry *model.EntryInfo) { entry.SetOperation(op) })
-			t.setReady()
 			s.log.Debug("new task enqueued by scheduler", log.Any("task", t))
+			t.setReady() // tell the worker that task is ready for processing
 		}
 	}
 

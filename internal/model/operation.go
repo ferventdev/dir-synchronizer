@@ -13,6 +13,7 @@ const (
 	OpStatusScheduled  OperationStatus = "scheduled"
 	OpStatusInProgress OperationStatus = "in_progress"
 	OpStatusCanceled   OperationStatus = "canceled"
+	OpStatusFailed     OperationStatus = "failed"
 	OpStatusCompleted  OperationStatus = "completed"
 )
 
@@ -38,6 +39,7 @@ type Operation struct {
 	ScheduledAt time.Time          `json:"scheduledAt"`
 	StartedAt   *time.Time         `json:"startedAt,omitempty"`
 	CanceledAt  *time.Time         `json:"canceledAt,omitempty"`
+	FailedAt    *time.Time         `json:"failedAt,omitempty"`
 	CompletedAt *time.Time         `json:"completedAt,omitempty"`
 }
 
@@ -46,5 +48,5 @@ func NewOperation(kind OperationKind) *Operation {
 }
 
 func (op *Operation) IsNotNilAndOver() bool {
-	return op != nil && (op.Status == OpStatusCanceled || op.Status == OpStatusCompleted)
+	return op != nil && (op.Status == OpStatusCanceled || op.Status == OpStatusCompleted || op.Status == OpStatusFailed)
 }

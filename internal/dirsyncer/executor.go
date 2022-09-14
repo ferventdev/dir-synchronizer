@@ -5,8 +5,8 @@ import (
 	"dsync/internal/log"
 	"dsync/internal/model"
 	"dsync/internal/settings"
+	"dsync/pkg/helpers/iout"
 	"dsync/pkg/helpers/run"
-	"dsync/pkg/helpers/ut"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -148,8 +148,7 @@ func (e *taskExecutor) process(ctx context.Context, task Task) error {
 
 func (e *taskExecutor) actualizeEntryPathsInfo(path string, entry *model.EntryInfo) (bool, error) {
 	updated := false
-	srcPath := filepath.Join(e.settings.SrcDir, path)
-	copyPath := filepath.Join(e.settings.CopyDir, path)
+	srcPath, copyPath := filepath.Join(e.settings.SrcDir, path), filepath.Join(e.settings.CopyDir, path)
 
 	// 1. actualize the source file info
 	srcInfo, err := os.Stat(srcPath)
@@ -161,6 +160,11 @@ func (e *taskExecutor) actualizeEntryPathsInfo(path string, entry *model.EntryIn
 			}
 		} else {
 			return false, err
+		}
+	} else if !(srcInfo.IsDir() || srcInfo.Mode().IsRegular()) { // is non-regular entry (i.e. symlink, device, etc.)
+		if entry.SrcPathInfo.Exists {
+			entry.SrcPathInfo = model.PathInfo{}
+			updated = true
 		}
 	} else { // the source file at the path exists right now
 		if entry.SrcPathInfo.Exists && entry.SrcPathInfo.FullPath != srcPath { // normally this should never happen
@@ -199,6 +203,11 @@ func (e *taskExecutor) actualizeEntryPathsInfo(path string, entry *model.EntryIn
 		} else {
 			return false, err
 		}
+	} else if !(copyInfo.IsDir() || copyInfo.Mode().IsRegular()) { // is non-regular entry (i.e. symlink, device, etc.)
+		if entry.CopyPathInfo.Exists {
+			entry.CopyPathInfo = model.PathInfo{}
+			updated = true
+		}
 	} else { // the copy file at the path exists right now
 		if entry.CopyPathInfo.Exists && entry.CopyPathInfo.FullPath != copyPath { // normally this should never happen
 			e.log.Warn("entry.CopyPathInfo has inactual FullPath",
@@ -232,11 +241,9 @@ func (e *taskExecutor) executeOperation(ctx context.Context, entry *model.EntryI
 	opKind := entry.OperationPtr.Kind
 	switch opKind {
 	case model.OpKindCopyFile:
-		// todo
-	case model.OpKindRemoveFile:
-		return ut.Remove(entry.CopyPathInfo.FullPath)
-	case model.OpKindRemoveDir:
-		return ut.Remove(entry.CopyPathInfo.FullPath)
+		return iout.CopyFile(ctx, entry.SrcPathInfo.FullPath, entry.CopyPathInfo.FullPath)
+	case model.OpKindRemoveFile, model.OpKindRemoveDir:
+		return iout.Remove(entry.CopyPathInfo.FullPath)
 	case model.OpKindReplaceFile:
 		// todo
 	case model.OpKindReplaceDirWithFile:

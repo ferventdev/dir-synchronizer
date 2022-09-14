@@ -11,11 +11,15 @@ type PathInfo struct {
 	ModTime  time.Time `json:"modTime"`
 }
 
+func (pi *PathInfo) IsFile() bool {
+	return !pi.IsDir
+}
+
 func (pi *PathInfo) IsSameAs(copy PathInfo) bool {
 	if !pi.Exists && !copy.Exists {
 		return true
 	}
-	//src and copy paths already refer to the same entry, so we don't need to compare names (paths)
+	//src and copy paths already refer to the same entry in DirEntriesMap, so we don't need to compare names (paths)
 	if pi.Exists && copy.Exists && pi.IsDir && copy.IsDir {
 		return true
 	}
@@ -49,18 +53,18 @@ func (ei *EntryInfo) IsSyncRequired() bool {
 
 func (ei *EntryInfo) ResolveOperationKind() OperationKind {
 	src, cp := ei.SrcPathInfo, ei.CopyPathInfo
-	// so far, I decided not to sync empty dirs, i.e. only all files (recursively) are synchronized
+	// so far, I decided not to copy empty dirs, i.e. only all files (recursively) are synchronized
 	// non-empty dirs will be synced automatically as a part of files full path
 	switch {
-	case src.Exists && !src.IsDir && !cp.Exists:
+	case src.Exists && src.IsFile() && !cp.Exists:
 		return OpKindCopyFile
-	case (!src.Exists || src.IsDir) && cp.Exists && !cp.IsDir:
+	case (!src.Exists || src.IsDir) && cp.Exists && cp.IsFile():
 		return OpKindRemoveFile
-	case !src.Exists && cp.Exists && cp.IsDir:
+	case !src.Exists && cp.Exists && cp.IsDir: // actually works if cp is an empty dir
 		return OpKindRemoveDir
-	case src.Exists && cp.Exists && !src.IsDir && cp.IsDir:
+	case src.Exists && cp.Exists && src.IsFile() && cp.IsDir: // actually works if cp is an empty dir
 		return OpKindReplaceDirWithFile
-	case src.Exists && cp.Exists && !src.IsDir && !cp.IsDir && (src.Size != cp.Size || src.ModTime != cp.ModTime):
+	case src.Exists && cp.Exists && src.IsFile() && cp.IsFile() && (src.Size != cp.Size || src.ModTime != cp.ModTime):
 		return OpKindReplaceFile
 	default:
 		return OpKindNone

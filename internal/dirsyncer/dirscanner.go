@@ -90,11 +90,14 @@ func (d *dirScanner) walk(ctx context.Context, root string, pathInfoSetter func(
 		if err != nil {
 			return fmt.Errorf("cannot fetch entry's %q info: %v", fullPath, err)
 		}
+		if !(info.IsDir() || info.Mode().IsRegular()) {
+			return nil // don't sync non-regular entries like symlinks, devices, sockets, etc.
+		}
 
 		pi := model.PathInfo{
 			Exists:   true,
 			FullPath: fullPath,
-			IsDir:    de.IsDir(),
+			IsDir:    info.IsDir(),
 			Size:     info.Size(),
 			ModTime:  info.ModTime(),
 		}

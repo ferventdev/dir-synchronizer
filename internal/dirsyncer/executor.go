@@ -6,6 +6,7 @@ import (
 	"dsync/internal/model"
 	"dsync/internal/settings"
 	"dsync/pkg/helpers/run"
+	"dsync/pkg/helpers/ut"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -51,8 +52,6 @@ func (e *taskExecutor) Start(ctx context.Context) {
 						task.EntryInfo.OperationPtr.FailedAt = &now
 						task.EntryInfo.OperationPtr.Status = model.OpStatusFailed
 						e.log.Error("failed to execute operation", log.Cause(err), log.Any("task", task))
-					} else {
-						e.log.Debug("operation processing finished", task.log()...) //todo: remove
 					}
 					e.entriesMap.SetValueByKey(task.Path, &(task.EntryInfo))
 				}
@@ -94,6 +93,7 @@ func (e *taskExecutor) process(ctx context.Context, task Task) error {
 		e.log.Debug("operation taken into processing", task.log()...)
 	}
 
+	// as long as some time passed since the task was created, we need to recheck the entry info before proceeding
 	wasUpdated, err := e.actualizeEntryPathsInfo(task.Path, entry)
 	if err != nil {
 		return fmt.Errorf("cannot actualize entry info: %v", err)
@@ -130,7 +130,7 @@ func (e *taskExecutor) process(ctx context.Context, task Task) error {
 			op.StartedAt, op.Status = &now, model.OpStatusInProgress
 		}
 	}
-	// anyway, we need to update the entry info (with operation inside) in the main common data structure
+	// we need to update the entry info (with operation inside) in the main common data structure
 	e.entriesMap.SetValueByKey(task.Path, entry)
 	if op.Status == model.OpStatusCanceled {
 		return nil // because no processing actually required
@@ -229,19 +229,20 @@ func (e *taskExecutor) actualizeEntryPathsInfo(path string, entry *model.EntryIn
 }
 
 func (e *taskExecutor) executeOperation(ctx context.Context, entry *model.EntryInfo) error {
-	switch entry.OperationPtr.Kind {
+	opKind := entry.OperationPtr.Kind
+	switch opKind {
 	case model.OpKindCopyFile:
 		// todo
 	case model.OpKindRemoveFile:
-		// todo
+		return ut.Remove(entry.CopyPathInfo.FullPath)
 	case model.OpKindRemoveDir:
-		// todo
+		return ut.Remove(entry.CopyPathInfo.FullPath)
 	case model.OpKindReplaceFile:
 		// todo
 	case model.OpKindReplaceDirWithFile:
 		// todo
 	default: // should never happen
-		panic("invalid operation kind: " + entry.OperationPtr.Kind)
+		panic("invalid operation kind: " + opKind)
 	}
 	return nil
 }

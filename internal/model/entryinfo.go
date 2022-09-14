@@ -15,6 +15,10 @@ func (pi *PathInfo) IsSameAs(copy PathInfo) bool {
 	if !pi.Exists && !copy.Exists {
 		return true
 	}
+	//src and copy paths already refer to the same entry, so we don't need to compare names (paths)
+	if pi.Exists && copy.Exists && pi.IsDir && copy.IsDir {
+		return true
+	}
 	return pi.Exists && copy.Exists && (pi.IsDir == copy.IsDir) && (pi.Size == copy.Size) && (pi.ModTime == copy.ModTime)
 }
 

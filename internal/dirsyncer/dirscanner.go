@@ -105,6 +105,7 @@ func (d *dirScanner) walk(ctx context.Context, root string, pathInfoSetter func(
 
 		//d.log.Debug("entry scanned",
 		//	log.String("path", path),
+		//	log.Bool("isDir", pi.IsDir),
 		//	log.Int64("size", pi.Size),
 		//	log.Time("modTime", pi.ModTime),
 		//)

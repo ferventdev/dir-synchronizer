@@ -25,7 +25,14 @@ func (t *Task) setReady() {
 }
 
 func (t *Task) log() []log.Field {
-	return []log.Field{log.String("path", t.Path), log.Any("operation", *(t.EntryInfo.OperationPtr))}
+	opPtr := t.EntryInfo.OperationPtr
+	var opField log.Field
+	if opPtr == nil {
+		opField = log.NilField("operation")
+	} else {
+		opField = log.Any("operation", *opPtr)
+	}
+	return []log.Field{log.String("path", t.Path), opField}
 }
 
 //taskScheduler service is responsible for scheduling sync operations that should be done in order to eliminate
@@ -86,6 +93,7 @@ func (s *taskScheduler) scheduleOnce(ctx context.Context) error {
 	childCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	for _, t := range tasksToEnqueue {
+		t := t
 		opKind := t.EntryInfo.ResolveOperationKind()
 		if opKind == model.OpKindNone {
 			s.log.Error("sync operation kind cannot be properly resolved", t.log()...)

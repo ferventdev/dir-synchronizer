@@ -18,12 +18,17 @@ var (
 	Error    = zap.Error
 	Int64    = zap.Int64
 	Uint64   = zap.Uint64
+	Reflect  = zap.Reflect
 	String   = zap.String
 	Time     = zap.Time
 )
 
 func Cause(err error) Field {
 	return zap.NamedError("cause", err)
+}
+
+func NilField(key string) Field {
+	return Reflect(key, nil)
 }
 
 type Field = zap.Field

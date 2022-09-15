@@ -49,9 +49,15 @@ func (e *taskExecutor) Start(ctx context.Context) {
 					}
 					if err := run.WithError(func() error { return e.process(ctx, task) }); err != nil {
 						now := time.Now()
-						task.EntryInfo.OperationPtr.FailedAt = &now
-						task.EntryInfo.OperationPtr.Status = model.OpStatusFailed
-						e.log.Error("failed to execute operation", log.Cause(err), log.Any("task", task))
+						if errors.Is(err, context.Canceled) {
+							task.EntryInfo.OperationPtr.CanceledAt = &now
+							task.EntryInfo.OperationPtr.Status = model.OpStatusCanceled
+							e.log.Info("operation successfully canceled", task.log()...)
+						} else {
+							task.EntryInfo.OperationPtr.FailedAt = &now
+							task.EntryInfo.OperationPtr.Status = model.OpStatusFailed
+							e.log.Error("failed to execute operation", log.Cause(err), log.Any("task", task))
+						}
 					}
 					e.entriesMap.SetValueByKey(task.Path, &(task.EntryInfo))
 				}
@@ -63,7 +69,7 @@ func (e *taskExecutor) Start(ctx context.Context) {
 //Stop awaits this executor's workers to finish their processing. But it doesn't wait forever - there is a timeout.
 func (e *taskExecutor) Stop() {
 	done := make(chan struct{})
-	e.log.Debug("taskExecutor awaiting its workers to finish processing")
+	e.log.Debug("taskExecutor awaiting its workers to finish / cancel processing")
 	go func() {
 		defer close(done)
 		e.wg.Wait()
@@ -90,7 +96,7 @@ func (e *taskExecutor) process(ctx context.Context, task Task) error {
 		e.entriesMap.UpdateValueByKey(task.Path, func(entry *model.EntryInfo) { entry.SetOperation(nil) })
 		return errTaskCannotGetReady
 	case <-task.ready: // usually this will be true instantly or as soon as possible
-		e.log.Debug("operation taken into processing", task.log()...)
+		//e.log.Debug("operation taken into processing", task.log()...)
 	}
 
 	// as long as some time passed since the task was created, we need to recheck the entry info before proceeding
@@ -120,24 +126,29 @@ func (e *taskExecutor) process(ctx context.Context, task Task) error {
 		}
 	} else {
 		// as long as entry paths info hasn't changed, we don't need to cancel or redefining the operation
-		//e.log.Debug("entry info has not got any changes since task creation", log.Any("task", task))
+		//e.log.Debug("entry info has not got any changes since task creation", task.log()...)
 	}
 
+	var opCtx context.Context
 	if op.Status != model.OpStatusCanceled {
 		if ctx.Err() != nil {
 			op.CanceledAt, op.Status = &now, model.OpStatusCanceled
 		} else {
 			op.StartedAt, op.Status = &now, model.OpStatusInProgress
+			childCtx, cancel := context.WithCancel(ctx)
+			defer cancel()
+			// makes it possible to cancel the operation during its execution
+			opCtx, op.CancelFn = childCtx, cancel
 		}
 	}
 	// we need to update the entry info (with operation inside) in the main common data structure
 	e.entriesMap.SetValueByKey(task.Path, entry)
-	if op.Status == model.OpStatusCanceled {
-		return nil // because no processing actually required
+	if op.Status != model.OpStatusInProgress {
+		return nil // no error, because no processing actually required, and we don't even start the operation
 	}
 
-	//e.log.Debug("operation execution will start now", log.Any("task", task))
-	if err := e.executeOperation(ctx, entry); err != nil {
+	e.log.Debug("operation execution started", task.log()...)
+	if err := e.executeOperation(opCtx, task.Path, entry); err != nil {
 		return err
 	}
 	now = time.Now()
@@ -237,11 +248,11 @@ func (e *taskExecutor) actualizeEntryPathsInfo(path string, entry *model.EntryIn
 	return updated, nil
 }
 
-func (e *taskExecutor) executeOperation(ctx context.Context, entry *model.EntryInfo) error {
+func (e *taskExecutor) executeOperation(ctx context.Context, path string, entry *model.EntryInfo) error {
 	opKind := entry.OperationPtr.Kind
 	switch opKind {
 	case model.OpKindCopyFile:
-		return iout.CopyFile(ctx, entry.SrcPathInfo.FullPath, entry.CopyPathInfo.FullPath)
+		return iout.CopyFile(ctx, entry.SrcPathInfo.FullPath, filepath.Join(e.settings.CopyDir, path))
 	case model.OpKindRemoveFile, model.OpKindRemoveDir:
 		return iout.Remove(entry.CopyPathInfo.FullPath)
 	case model.OpKindReplaceFile:

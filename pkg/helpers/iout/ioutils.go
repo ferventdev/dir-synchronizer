@@ -44,7 +44,7 @@ func Remove(path string) error {
 	return nil
 }
 
-//CopyFile copies the entry at the source path (must be a regular file) to specified destination.
+//CopyFile copies the entry at the source path (must be a regular file) to the specified destination.
 func CopyFile(ctx context.Context, srcPath, dstPath string) error {
 	if err := copyFileContents(ctx, srcPath, dstPath); err != nil {
 		return fmt.Errorf("failed to copy file: %w", err)

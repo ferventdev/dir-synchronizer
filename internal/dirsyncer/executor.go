@@ -111,7 +111,7 @@ func (e *taskExecutor) process(ctx context.Context, task Task) error {
 		// and in such case we may need to cancel or redefine it
 		if entry.IsSyncRequired() {
 			opKind := entry.ResolveOperationKind()
-			if opKind == model.OpKindNone {
+			if opKind == model.OpKindNone || opKind == model.OpKindCopyDir {
 				op.CanceledAt, op.Status = &now, model.OpStatusCanceled
 				e.log.Debug("entry actualized, sync not required now, operation will be canceled", task.log()...)
 			} else {
@@ -252,7 +252,8 @@ func (e *taskExecutor) executeOperation(ctx context.Context, path string, entry 
 	opKind := entry.OperationPtr.Kind
 	switch opKind {
 	case model.OpKindCopyFile:
-		return iout.CopyFile(ctx, entry.SrcPathInfo.FullPath, filepath.Join(e.settings.CopyDir, path))
+		src, dst := entry.SrcPathInfo.FullPath, filepath.Join(e.settings.CopyDir, path)
+		return iout.CopyFile(ctx, src, dst, entry.SrcPathInfo.ModTime)
 	case model.OpKindRemoveFile, model.OpKindRemoveDir:
 		return iout.Remove(entry.CopyPathInfo.FullPath)
 	case model.OpKindReplaceFile:

@@ -7,7 +7,9 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"path/filepath"
 	"strings"
+	"time"
 )
 
 // this is for cross-platformity (afraid to use syscall.ENOTEMPTY, because it seems to be unix-only)
@@ -45,11 +47,17 @@ func Remove(path string) error {
 }
 
 //CopyFile copies the entry at the source path (must be a regular file) to the specified destination.
-func CopyFile(ctx context.Context, srcPath, dstPath string) error {
-	if err := copyFileContents(ctx, srcPath, dstPath); err != nil {
-		return fmt.Errorf("failed to copy file: %w", err)
+//It sets for the copied file the same modTime as the source file modTime.
+func CopyFile(ctx context.Context, srcPath, dstPath string, srcModTime time.Time) error {
+	if err := os.MkdirAll(filepath.Dir(dstPath), os.ModePerm); err != nil {
+		return fmt.Errorf("cannot create dir: %w", err)
 	}
-	//todo
+	if err := copyFileContents(ctx, srcPath, dstPath); err != nil {
+		return fmt.Errorf("cannot copy file: %w", err)
+	}
+	if err := os.Chtimes(dstPath, time.Now(), srcModTime); err != nil {
+		return fmt.Errorf("cannot set file modification time: %w", err)
+	}
 	return nil
 }
 

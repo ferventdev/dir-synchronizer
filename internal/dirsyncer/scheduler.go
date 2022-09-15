@@ -95,8 +95,12 @@ func (s *taskScheduler) scheduleOnce(ctx context.Context) error {
 	for _, t := range tasksToEnqueue {
 		t := t
 		opKind := t.EntryInfo.ResolveOperationKind()
+		if opKind == model.OpKindCopyDir {
+			// do not copy empty dir, and non-empty dir will be copied automatically on the file copying
+			continue
+		}
 		if opKind == model.OpKindNone {
-			s.log.Error("sync operation kind cannot be properly resolved", t.log()...)
+			s.log.Warn("sync operation kind cannot be properly resolved", t.log()...)
 			continue
 		}
 		op := model.NewOperation(opKind)

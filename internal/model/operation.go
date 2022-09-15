@@ -22,6 +22,7 @@ type OperationKind string
 const (
 	OpKindNone               OperationKind = "none"
 	OpKindCopyFile           OperationKind = "copy_file"
+	OpKindCopyDir            OperationKind = "copy_dir"
 	OpKindRemoveFile         OperationKind = "remove_file"
 	OpKindRemoveDir          OperationKind = "remove_dir"
 	OpKindReplaceFile        OperationKind = "replace_file"

@@ -164,7 +164,8 @@ func (e *taskExecutor) actualizeEntryPathsInfo(path string, entry *model.EntryIn
 	// 1. actualize the source file info
 	srcInfo, err := os.Stat(srcPath)
 	if err != nil {
-		if errors.Is(err, fs.ErrNotExist) { // the source file at the path does NOT exist right now
+		if errors.Is(err, fs.ErrNotExist) || iout.IsErrNotDir(err) {
+			// the source file at the path does NOT exist right now
 			if entry.SrcPathInfo.Exists {
 				entry.SrcPathInfo = model.PathInfo{}
 				updated = true
@@ -206,7 +207,8 @@ func (e *taskExecutor) actualizeEntryPathsInfo(path string, entry *model.EntryIn
 	// 2. actualize the copy file info
 	copyInfo, err := os.Stat(copyPath)
 	if err != nil {
-		if errors.Is(err, fs.ErrNotExist) { // the copy file at the path does NOT exist right now
+		if errors.Is(err, fs.ErrNotExist) || iout.IsErrNotDir(err) {
+			// the copy file at the path does NOT exist right now
 			if entry.CopyPathInfo.Exists {
 				entry.CopyPathInfo = model.PathInfo{}
 				updated = true
@@ -249,17 +251,17 @@ func (e *taskExecutor) actualizeEntryPathsInfo(path string, entry *model.EntryIn
 }
 
 func (e *taskExecutor) executeOperation(ctx context.Context, path string, entry *model.EntryInfo) error {
+	src, dst := entry.SrcPathInfo.FullPath, entry.CopyPathInfo.FullPath
 	opKind := entry.OperationPtr.Kind
 	switch opKind {
 	case model.OpKindCopyFile:
-		src, dst := entry.SrcPathInfo.FullPath, filepath.Join(e.settings.CopyDir, path)
-		return iout.CopyFile(ctx, src, dst, entry.SrcPathInfo.ModTime)
+		return iout.CopyFile(ctx, src, filepath.Join(e.settings.CopyDir, path), entry.SrcPathInfo.ModTime)
 	case model.OpKindRemoveFile, model.OpKindRemoveDir:
-		return iout.Remove(entry.CopyPathInfo.FullPath)
+		return iout.Remove(dst)
 	case model.OpKindReplaceFile:
-		// todo
+		return iout.ReplaceFile(ctx, src, dst, entry.SrcPathInfo.ModTime)
 	case model.OpKindReplaceDirWithFile:
-		// todo
+		return iout.ReplaceDirWithFile(ctx, src, dst, entry.SrcPathInfo.ModTime)
 	default: // should never happen
 		panic("invalid operation kind: " + opKind)
 	}

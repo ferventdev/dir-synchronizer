@@ -25,7 +25,7 @@ func main() {
 		exit(err, 1)
 	}
 
-	// this print proves graceful shutdown
+	// this print proves normal (externally initialized) and graceful shutdown
 	fmt.Printf("Directories Synchronizer process (PID = %d) has been stopped\n", pid)
 }
 

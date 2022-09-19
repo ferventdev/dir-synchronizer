@@ -69,12 +69,17 @@ func (d *DirSyncer) Start(ctx context.Context, stop context.CancelFunc) (err err
 			stop() // stop receiving signal notifications as soon as possible
 			return nil
 		case <-ticker.C:
-			err := scanDirsAndScheduleTasks(ctx, dirScanner, scheduler)
-			if errors.Is(err, context.Canceled) {
-				return nil
-			}
-			if errCount++; errCount >= maxConsecutiveErrors {
-				return err
+			if err := scanDirsAndScheduleTasks(ctx, dirScanner, scheduler); err != nil {
+				if errors.Is(err, context.Canceled) {
+					return nil
+				}
+				if errCount++; errCount >= maxConsecutiveErrors {
+					return err
+				}
+			} else {
+				if errCount > 0 {
+					errCount--
+				}
 			}
 		}
 	}

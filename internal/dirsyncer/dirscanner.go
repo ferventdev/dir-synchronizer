@@ -25,8 +25,6 @@ func newDirScanner(logger log.Logger, stg settings.Settings, eMap *model.DirEntr
 }
 
 func (d *dirScanner) scanOnce(parentCtx context.Context) error {
-	//d.log.Debug("scanOnce started")
-	//start := time.Now()
 	d.entriesMap.PrepareForScan()
 
 	ctx, cancel := context.WithCancel(parentCtx)
@@ -65,7 +63,6 @@ func (d *dirScanner) scanOnce(parentCtx context.Context) error {
 	}
 
 	d.entriesMap.RemoveObsolete()
-	//d.log.Debug("scanOnce finished", log.Duration("tookTime", time.Since(start)))
 	return ctx.Err()
 }
 

@@ -95,8 +95,8 @@ func (s *taskScheduler) scheduleOnce(ctx context.Context) error {
 	for _, t := range tasksToEnqueue {
 		t := t
 		opKind := t.EntryInfo.ResolveOperationKind()
-		if opKind == model.OpKindCopyDir {
-			// do not copy empty dir, and non-empty dir will be copied automatically on the file copying
+		if opKind == model.OpKindCopyDir && !s.settings.IncludeEmptyDirs {
+			// do not copy dir (non-empty dir will be copied automatically on the file copying)
 			continue
 		}
 		if opKind == model.OpKindNone {

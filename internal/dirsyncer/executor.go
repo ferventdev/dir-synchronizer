@@ -111,7 +111,7 @@ func (e *taskExecutor) process(ctx context.Context, task Task) error {
 		// and in such case we may need to cancel or redefine it
 		if entry.IsSyncRequired() {
 			opKind := entry.ResolveOperationKind()
-			if opKind == model.OpKindNone || opKind == model.OpKindCopyDir {
+			if opKind == model.OpKindNone || (!e.settings.IncludeEmptyDirs && opKind == model.OpKindCopyDir) {
 				op.CanceledAt, op.Status = &now, model.OpStatusCanceled
 				e.log.Debug("entry actualized, sync not required now, operation will be canceled", task.log()...)
 			} else {
@@ -256,6 +256,11 @@ func (e *taskExecutor) executeOperation(ctx context.Context, path string, entry 
 	switch opKind {
 	case model.OpKindCopyFile:
 		return iout.CopyFile(ctx, src, filepath.Join(e.settings.CopyDir, path), entry.SrcPathInfo.ModTime)
+	case model.OpKindCopyDir:
+		// actually needed for empty dirs, because non-empty dirs are synced automatically as a part of files full path
+		if e.settings.IncludeEmptyDirs {
+			return iout.EnsureDirExists(ctx, filepath.Join(e.settings.CopyDir, path))
+		}
 	case model.OpKindRemoveFile, model.OpKindRemoveDir:
 		return iout.Remove(dst)
 	case model.OpKindReplaceFile:

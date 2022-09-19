@@ -57,9 +57,8 @@ func (ei *EntryInfo) ResolveOperationKind() OperationKind {
 	case src.Exists && src.IsFile() && !cp.Exists:
 		return OpKindCopyFile
 	case src.Exists && src.IsDir && !cp.Exists:
-		// so far, I decided not to copy empty dirs, i.e. only all files (recursively) are synchronized
-		// non-empty dirs will be synced automatically as a part of files full path
-		return OpKindCopyDir // although defined, in fact it is never processed
+		// actually needed for empty dirs, because non-empty dirs are synced automatically as a part of files full path
+		return OpKindCopyDir
 	case (!src.Exists || src.IsDir) && cp.Exists && cp.IsFile():
 		return OpKindRemoveFile
 	case !src.Exists && cp.Exists && cp.IsDir: // actually works if cp is an empty dir

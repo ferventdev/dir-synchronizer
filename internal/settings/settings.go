@@ -20,15 +20,16 @@ const (
 )
 
 type Settings struct {
-	SrcDir        string
-	CopyDir       string
-	ScanPeriod    time.Duration
-	IncludeHidden bool
-	LogLevel      log.Level
-	LogToStd      bool
-	Once          bool
-	PrintPID      bool
-	WorkersCount  int
+	SrcDir           string
+	CopyDir          string
+	ScanPeriod       time.Duration
+	IncludeHidden    bool
+	IncludeEmptyDirs bool
+	LogLevel         log.Level
+	LogToStd         bool
+	Once             bool
+	PrintPID         bool
+	WorkersCount     int
 }
 
 func New(commandArgs []string) (*Settings, error) {
@@ -37,6 +38,8 @@ func New(commandArgs []string) (*Settings, error) {
 
 	flagSet.BoolVar(&stg.IncludeHidden, "hidden", false,
 		"if true, then hidden files (that start with dot) are included in synchronization")
+	flagSet.BoolVar(&stg.IncludeEmptyDirs, "copydirs", false,
+		"if true, then empty directories are included in synchronization as well (non-empty are synced anyway)")
 	flagSet.BoolVar(&stg.LogToStd, "log2std", false,
 		"if true, then logs are written to the console, otherwise - to the text file")
 	flagSet.BoolVar(&stg.Once, "once", false,

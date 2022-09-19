@@ -16,13 +16,13 @@ help:
 	@echo "make run srcdir=/path/to/source/dir copydir=/path/to/mirror/dir"
 
 build:
-	@cd ${MAIN_DIR} && go build -o ${BINARY_NAME} main.go
+	@cd ${MAIN_DIR} && go build -mod vendor -o ${BINARY_NAME} main.go
 
 run: build
 	@${MAIN_DIR}/${BINARY_NAME} -pid ${srcdir} ${copydir} &
 
 debug:
-	@go run -race ${MAIN_DIR}/main.go -scanperiod=1s -pid -log2std -loglvl=DEBUG ${srcdir} ${copydir}
+	@go run -mod vendor -race ${MAIN_DIR}/main.go -scanperiod=1s -copydirs -pid -log2std -loglvl=DEBUG ${srcdir} ${copydir}
 
 clean:
 	@cd ${MAIN_DIR} && go clean

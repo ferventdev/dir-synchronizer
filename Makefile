@@ -22,7 +22,7 @@ run: build
 	@${MAIN_DIR}/${BINARY_NAME} -pid ${srcdir} ${copydir} &
 
 debug:
-	@go run -mod vendor -race ${MAIN_DIR}/main.go -scanperiod=1s -copydirs -pid -log2std -loglvl=DEBUG ${srcdir} ${copydir}
+	@go run -mod vendor -race ${MAIN_DIR}/main.go -scanperiod=1s -copydirs -pid -log2std -loglvl=DEBUG ${srcdir} ${copydir} || echo "debug interrupted"
 
 clean:
 	@cd ${MAIN_DIR} && go clean

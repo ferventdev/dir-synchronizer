@@ -32,7 +32,12 @@ func (t *Task) log() []log.Field {
 	} else {
 		opField = log.Any("operation", *opPtr)
 	}
-	return []log.Field{log.String("path", t.Path), opField}
+	fields := []log.Field{log.String("path", t.Path), opField}
+	if opPtr != nil && (opPtr.Kind == model.OpKindCopyFile || opPtr.Kind == model.OpKindReplaceFile ||
+		opPtr.Kind == model.OpKindReplaceDirWithFile) {
+		fields = append(fields, log.Int64("size", t.EntryInfo.SrcPathInfo.Size))
+	}
+	return fields
 }
 
 //taskScheduler service is responsible for scheduling sync operations that should be done in order to eliminate

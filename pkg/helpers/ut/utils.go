@@ -5,6 +5,7 @@ import (
 	"sync/atomic"
 )
 
+//CreateUint64IDGenerator returns an ID generator, which is a function that is safe to be called concurrently.
 func CreateUint64IDGenerator() func() uint64 {
 	counter := new(uint64)
 	return func() uint64 {

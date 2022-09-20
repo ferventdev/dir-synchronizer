@@ -1,5 +1,6 @@
 MAIN_DIR = ./cmd/dsync
 BINARY_NAME = dirsynchronizer
+COVER_FILE = cover.out
 
 help:
 	@echo "Possible targets:"
@@ -8,6 +9,7 @@ help:
 	@echo "- stop		for terminating all processes (via pkill), that were started by this project binary"
 	@echo "- stoplast	for terminating the last process (via pkill), that was started by this project binary"
 	@echo "- build   	for building the project"
+	@echo "- test   	for running all tests in the project with coverage"
 	@echo "- debug   	for running the project binary in the foreground with some debug options turned on"
 	@echo "- clean   	for cleaning the app main directory"
 	@echo "- getpid 	for printing the PID(s) of all processes (via pgrep), that were started by this project binary"
@@ -24,9 +26,14 @@ run: build
 debug:
 	@go run -mod vendor -race ${MAIN_DIR}/main.go -scanperiod=1s -copydirs -pid -log2std -loglvl=DEBUG ${srcdir} ${copydir} || echo "debug interrupted"
 
+test:
+	@go test -mod vendor -race ./... -coverprofile ${COVER_FILE}
+	@go tool cover -func ${COVER_FILE} | grep total:
+
 clean:
 	@cd ${MAIN_DIR} && go clean
 	@rm -f ${MAIN_DIR}/${BINARY_NAME}
+	@rm -f ./${COVER_FILE}
 
 getpid:
 	@pgrep ${BINARY_NAME} || echo "No ${BINARY_NAME} processes found"

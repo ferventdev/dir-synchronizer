@@ -32,9 +32,9 @@ type Settings struct {
 	WorkersCount     int
 }
 
-func New(commandArgs []string) (*Settings, error) {
+func New(commandArgs []string, handling flag.ErrorHandling) (*Settings, error) {
 	stg := new(Settings)
-	flagSet := flag.NewFlagSet("Directories Synchronizer CLI", flag.ExitOnError)
+	flagSet := flag.NewFlagSet("Directories Synchronizer CLI", handling)
 
 	flagSet.BoolVar(&stg.IncludeHidden, "hidden", false,
 		"if true, then hidden files (that start with dot) are included in synchronization")

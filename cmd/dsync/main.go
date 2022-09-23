@@ -5,6 +5,7 @@ import (
 	"dsync/internal/dirsyncer"
 	"dsync/internal/log"
 	"dsync/internal/settings"
+	"flag"
 	"fmt"
 	"os"
 	"os/signal"
@@ -12,7 +13,7 @@ import (
 )
 
 func main() {
-	stg, err := settings.New(os.Args[1:])
+	stg, err := settings.New(os.Args[1:], flag.ExitOnError)
 	if err != nil {
 		exit(err, 2)
 	}

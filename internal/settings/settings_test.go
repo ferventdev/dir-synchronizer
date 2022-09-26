@@ -99,6 +99,83 @@ func TestNew(t *testing.T) {
 	}
 }
 
+func TestSettings_Validate(t *testing.T) {
+	type fields struct {
+		SrcDir       string
+		CopyDir      string
+		ScanPeriod   time.Duration
+		WorkersCount int
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		wantErr bool
+		errText string
+	}{
+		{
+			name:    "no source dir",
+			fields:  fields{SrcDir: "noSuchDir", CopyDir: "cpDir"},
+			wantErr: true,
+			errText: "the first (source) directory is invalid",
+		},
+		{
+			name:    "source not dir",
+			fields:  fields{SrcDir: "settings.go", CopyDir: "cpDir"},
+			wantErr: true,
+			errText: "is not a directory path",
+		},
+		{
+			name:    "no copy dir",
+			fields:  fields{SrcDir: "../settings", CopyDir: "noSuchDir"},
+			wantErr: true,
+			errText: "the second (copy) directory is invalid",
+		},
+		{
+			name:    "copy not dir",
+			fields:  fields{SrcDir: "../settings", CopyDir: "settings.go"},
+			wantErr: true,
+			errText: "is not a directory path",
+		},
+		{
+			name:    "bad scan period",
+			fields:  fields{SrcDir: "../settings", CopyDir: "../model", ScanPeriod: maxScanPeriod + time.Second},
+			wantErr: true,
+			errText: "period of directories scanning must be a value between",
+		},
+		{
+			name:    "bad workers count",
+			fields:  fields{SrcDir: "../settings", CopyDir: "../model", ScanPeriod: minScanPeriod, WorkersCount: maxWorkersCount + 1},
+			wantErr: true,
+			errText: "number of workers must be a value between",
+		},
+		{
+			name:    "ok",
+			fields:  fields{SrcDir: "../settings", CopyDir: "../model", ScanPeriod: minScanPeriod, WorkersCount: minWorkersCount},
+			wantErr: false,
+			errText: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := (&Settings{
+				SrcDir:       tt.fields.SrcDir,
+				CopyDir:      tt.fields.CopyDir,
+				ScanPeriod:   tt.fields.ScanPeriod,
+				WorkersCount: tt.fields.WorkersCount,
+			}).Validate()
+
+			requires := require.New(t)
+			if tt.wantErr {
+				requires.ErrorContains(err, tt.errText)
+				return
+			}
+
+			requires.NoError(err)
+		})
+	}
+}
+
 func abs(path string) string {
 	s, _ := filepath.Abs(path)
 	return s

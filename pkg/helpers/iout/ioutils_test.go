@@ -53,3 +53,19 @@ func TestEnsureDirExistsCannotMakeDir(t *testing.T) {
 	requires.ErrorContains(err, "cannot make dir")
 	requires.True(IsErrNotDir(err))
 }
+
+func TestRemoveIgnoresNonEmptyDir(t *testing.T) {
+	requires := require.New(t)
+	wd, err := os.Getwd()
+	requires.NoError(err)
+	nonEmptyDirPath := filepath.Join(wd, "testdata/src")
+
+	err = Remove(nonEmptyDirPath) // dir is not empty, so won't be removed (no error)
+
+	requires.NoError(err)
+
+	// check that dir still exists (was not removed)
+	dirInfo, err := os.Stat(nonEmptyDirPath)
+	requires.NoError(err)
+	requires.True(dirInfo.IsDir())
+}

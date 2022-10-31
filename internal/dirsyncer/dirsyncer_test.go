@@ -16,7 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestDirSyncerBySingleRun(t *testing.T) {
+func TestDirSyncerByRunningOnce(t *testing.T) {
 	requires := require.New(t)
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
@@ -36,6 +36,7 @@ func TestDirSyncerBySingleRun(t *testing.T) {
 		SrcDir:           srcDir,
 		CopyDir:          copyDir,
 		ScanPeriod:       2 * time.Second,
+		IncludeHidden:    false,
 		IncludeEmptyDirs: true,
 		LogLevel:         log.DebugLevel,
 		LogToStd:         true,
@@ -44,6 +45,56 @@ func TestDirSyncerBySingleRun(t *testing.T) {
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// 2. act
+	err = New(loggerMock, stg).Start(ctx, cancel)
+
+	// 3. assert
+	requires.NoError(err)
+
+	dirEntriesMap := model.NewDirEntriesMap()
+	requires.NoError(newDirScanner(loggerMock, stg, dirEntriesMap).scanOnce(context.Background()))
+
+	err = dirEntriesMap.ForEach(func(key string, eMap map[string]model.EntryInfo) error {
+		entry := eMap[key]
+		requires.False(entry.IsSyncRequired())
+		return nil
+	})
+	requires.NoError(err)
+}
+
+func TestDirSyncerByRunningRegularly(t *testing.T) {
+	requires := require.New(t)
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	// 1. arrange
+	_ = os.Chdir("testdata")
+	wd, _ := os.Getwd()
+	srcDir := filepath.Join(wd, "src")
+	copyDir, err := os.MkdirTemp(wd, "copy")
+	requires.NoError(err)
+	defer os.RemoveAll(copyDir)
+
+	prepareCopyDir(requires, copyDir, srcDir)
+
+	loggerMock := getMockLogger(mockCtrl, gomock.Any())
+	scanPeriod := time.Second
+	stg := settings.Settings{
+		SrcDir:           srcDir,
+		CopyDir:          copyDir,
+		ScanPeriod:       scanPeriod,
+		IncludeHidden:    true,
+		IncludeEmptyDirs: true,
+		LogLevel:         log.DebugLevel,
+		LogToStd:         true,
+		Once:             false,
+		WorkersCount:     4,
+	}
+
+	timeout := 2*scanPeriod + 200*time.Millisecond
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
 	// 2. act

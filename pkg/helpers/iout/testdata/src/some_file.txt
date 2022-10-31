@@ -1,0 +1,1 @@
+This is a text file that must be copied within the test.

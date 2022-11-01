@@ -10,6 +10,7 @@ help:
 	@echo "- stoplast	for terminating the last process (via pkill), that was started by this project binary"
 	@echo "- build   	for building the project"
 	@echo "- test   	for running all tests in the project with coverage"
+	@echo "- bench   	for running the benchmark on the file copy function"
 	@echo "- debug   	for running the project binary in the foreground with some debug options turned on"
 	@echo "- clean   	for cleaning the app main directory"
 	@echo "- getpid 	for printing the PID(s) of all processes (via pgrep), that were started by this project binary"
@@ -29,6 +30,9 @@ debug:
 test:
 	@go test -mod vendor -race ./... -coverprofile ${COVER_FILE}
 	@go tool cover -func ${COVER_FILE} | grep total:
+
+bench:
+	@go test -mod vendor ./pkg/helpers/iout -bench=. -benchmem -count=3
 
 clean:
 	@cd ${MAIN_DIR} && go clean
